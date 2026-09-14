@@ -17,6 +17,7 @@ from ..auth import require_user, require_editor, audit, require_csrf
 from ..templating import templates
 from ..catalogue import SOLUTIONS
 from ..config import UPLOAD_DIR
+from ..backup import backup_after_run
 from ..engine import readers as R
 from ..engine.golden import calculate, voucher_key, INELIGIBLE_KEYWORDS
 from ..engine.calc import (summarise, summarise_by_project, vendor_concentration,
@@ -299,6 +300,11 @@ async def new_run(request: Request,
             request, user, cfg=cfg,
             error="This month changed while the upload was running. Please refresh."),
             status_code=409)
+    try:
+        _, request.session["backup_notice"] = backup_after_run()
+    except (OSError, RuntimeError, ValueError) as exc:
+        request.session["backup_notice"] = (
+            f"Calculation saved, but today's database backup FAILED: {exc}")
     return RedirectResponse(f"/gst8020/runs/{run.id}", status_code=303)
 
 
@@ -380,10 +386,11 @@ def run_detail(request: Request, run_id: int, user: User = Depends(require_user)
     open_rect = db.scalar(select(func.count(Rectification.id))
                           .where(Rectification.run_id == run_id,
                                  Rectification.status.in_(("open", "in_progress")))) or 0
+    backup_notice = request.session.pop("backup_notice", None)
     return templates.TemplateResponse(request, "gst/run.html", ctx(
         request, user, run=run, stats=stats, cfg=cfg, table=report_table(rows, cfg),
         projects=summarise_by_project(rows, cfg), open_rect=open_rect,
-        files=json.loads(run.source_files or "{}")))
+        files=json.loads(run.source_files or "{}"), backup_notice=backup_notice))
 
 
 @router.get("/runs/{run_id}/rows", response_class=HTMLResponse)

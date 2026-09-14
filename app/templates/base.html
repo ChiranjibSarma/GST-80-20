@@ -18,6 +18,7 @@
         <a href="{{ s.url }}" {% if module == s.slug %}class="on"{% endif %}>{{ s.name }}</a>
       {% endfor %}
       {% if user and user.is_admin %}<a href="/admin/users" {% if module == 'admin' %}class="on"{% endif %}>Administration</a>{% endif %}
+      {% if user and user.is_admin %}<a href="/admin/license">Licence</a>{% endif %}
     </nav>
     {% if user %}
     <div class="who">
@@ -28,6 +29,12 @@
     {% endif %}
   </div>
 </header>
+{% if request.state.license is defined and request.state.license.read_only %}
+<div class="wrap" style="padding-top:12px"><div class="callout err">
+  {{ request.state.license.message }} Existing results remain viewable and exportable.
+  {% if user and user.is_admin %}<a href="/admin/license">Licence details</a>{% endif %}
+</div></div>
+{% endif %}
 {% block subnav %}{% endblock %}
 <main class="wrap">{% block content %}{% endblock %}</main>
 <script>

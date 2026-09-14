@@ -22,3 +22,8 @@ reference/*
 *.sqlite
 *.sqlite3
 *.log
+# Offline licence issuer material must never travel with the client package.
+issuer-private*.pem
+license.json
+license-state.json
+installation-id

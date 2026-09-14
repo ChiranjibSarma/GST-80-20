@@ -1,7 +1,7 @@
 # GST 80:20 Finance Operations Portal
 
-A web application for the Accounts & Finance department, deployed on the client's own
-server. The portal home page is a catalogue of solutions; the first live module is the
+A web application for the Accounts & Finance department. The portal home page is a
+catalogue of solutions; the first live module is the
 **GST 80:20 Input Credit** calculation. Its calculation engine is a web-safe port of
 the client-approved `reference/80-20.py` script.
 
@@ -64,10 +64,21 @@ Manager (`winget`); if that is unavailable or restricted, install Python manuall
 and select *Add Python to PATH*. It uses `install.ps1` to create `.venv`,
 install `requirements.txt` (from the internet or an optional local `wheelhouse/`),
 prepare a local SQLite database and generate the initial administrator password.
+On first launch it asks for an existing **mirrored** client-only Google Drive folder.
+With that folder configured, it loads the shared *closed* database copy before
+starting and publishes an updated copy when the window closes. It also saves a
+dated, integrity-checked backup after the first successful calculation each day.
 It then starts the portal at `http://127.0.0.1:8080` and opens a browser. Keep the
 console open; Ctrl+C stops the server. Use `deploy.bat 8081` for a different port.
-This launcher binds only to the local PC; for a shared HTTPS server, follow
-`DEPLOYMENT.md` instead. Existing `.env` and database contents are preserved.
+This launcher binds only to the local PC. **Only one person may use the shared
+Drive handoff at a time.** Wait for Drive to say *Up to date* before the next
+person starts; the app cannot verify sync completion or enforce a lock across PCs.
+See `DEPLOYMENT.md` for the exact handoff and recovery steps.
+
+Each PC requires its own signed 14-day licence file, activated on first valid
+use. After expiry, existing results and exports stay readable but new changes
+are blocked. The private signing key must remain with the issuer, not on client
+PCs or in Git. See `DEPLOYMENT.md` for licence issuance and installation.
 
 Only source code and the original `reference/80-20.py` are intended for GitHub.
 Client Excel exports and the approved July output are ignored. The workbook

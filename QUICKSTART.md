@@ -2,12 +2,17 @@
 
 Copy this folder to the server, then run one command.
 
-For a single Windows PC, double-click `deploy.bat` instead. It installs the Python
+For a Windows PC, double-click `deploy.bat` instead. It installs the Python
 packages, creates a local database, starts the portal and opens the browser.
+For one-at-a-time use on separate PCs, select the same existing Google Drive
+**mirrored** folder on each PC. Never open the portal on two PCs at once, and
+wait for Drive to report *Up to date* between users. See `DEPLOYMENT.md`.
 It attempts to install Python 3.12 through `winget` if Python 3.11+ is not
 already available. If corporate policy blocks that, install Python manually.
 The first-run administrator password is printed in the console; keep it private
 and change it after signing in.
+New calculations are read-only until that PC has a signed licence at
+`var/license.json`. The 14-day term starts on first valid use, not installation.
 
 **Linux / macOS**
 

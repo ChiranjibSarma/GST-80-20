@@ -5,6 +5,11 @@ import tempfile
 import io
 import re
 import html
+import base64
+import datetime as dt
+import json
+import sqlite3
+import uuid
 import openpyxl
 
 TEST_VAR = tempfile.mkdtemp(prefix="gst8020-test-")
@@ -14,10 +19,29 @@ os.environ["BOOTSTRAP_ADMIN_PASSWORD"] = "GoldenTestPassword1"
 
 from fastapi.testclient import TestClient
 from sqlalchemy import select, func
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from app.main import app
+from app import license as licensing
 from app.db import SessionLocal
-from app.models import Run, RunRow, Rectification, AuditLog, Creditor
+from app.config import BACKUP_DIR
+from app.models import Run, RunRow, Rectification, AuditLog, Creditor, LicenseActivation
+
+# The HTTP test uses a throwaway signed licence; no issuer key is in the repo.
+test_key = Ed25519PrivateKey.generate()
+licensing.PUBLIC_KEY_PATH = Path(TEST_VAR) / "public.pem"
+licensing.PUBLIC_KEY_PATH.write_bytes(test_key.public_key().public_bytes(
+    serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo))
+test_installation_id = str(uuid.uuid4())
+licensing.INSTALLATION_ID_FILE.write_text(test_installation_id, encoding="ascii")
+test_payload = {"schema": 1, "license_id": str(uuid.uuid4()),
+                "installation_id": test_installation_id, "customer": "Test Client",
+                "duration_days": 14, "issued_at": dt.datetime.now(dt.timezone.utc).isoformat()}
+licensing.LICENSE_FILE.write_text(json.dumps({
+    "payload": test_payload,
+    "signature": base64.b64encode(test_key.sign(licensing.canonical(test_payload))).decode("ascii"),
+}), encoding="utf-8")
 
 ROOT = Path(__file__).resolve().parents[1]
 REF = ROOT / "reference"
@@ -49,6 +73,11 @@ def main():
                                files=upload_payload(), follow_redirects=False)
         assert response.status_code == 303, response.text[:1000]
         run_id = int(response.headers["location"].rstrip("/").split("/")[-1])
+        backups = list(BACKUP_DIR.glob("gst8020-*.sqlite3"))
+        assert len(backups) == 1
+        with sqlite3.connect(backups[0]) as backup_db:
+            assert backup_db.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+            assert backup_db.execute("SELECT count(*) FROM run_rows").fetchone()[0] == 1232
         with SessionLocal() as db:
             assert db.scalar(select(func.count(RunRow.id)).where(RunRow.run_id == run_id)) == 1232
             assert db.scalar(select(func.count(Rectification.id)).where(Rectification.run_id == run_id)) == 20
@@ -117,7 +146,17 @@ def main():
                                follow_redirects=False)
         assert response.status_code == 409
 
-    print("PASS: upload/export match golden workbook; freeze audited; replacement rejected")
+        with SessionLocal() as db:
+            activation = db.get(LicenseActivation, test_payload["license_id"])
+            expiry = licensing.as_utc(activation.activated_at) + dt.timedelta(days=14)
+        licensing.utcnow = lambda: expiry
+        assert client.post("/admin/users", data={
+            "name": "Blocked", "email": "blocked@test.local", "password": "Password12345",
+            "role": "viewer", "csrf_token_value": csrf,
+        }).status_code == 423
+        assert client.get(f"/gst8020/runs/{run_id}/export.xlsx").status_code == 200
+
+    print("PASS: upload/export match golden workbook; freeze and licence expiry reject writes")
 
 
 if __name__ == "__main__":

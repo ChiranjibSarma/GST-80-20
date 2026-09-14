@@ -1,5 +1,70 @@
 # Deployment
 
+## Windows PCs: sequential handoff through Google Drive
+
+The client has no shared server. Each operator runs `deploy.bat` on their own PC,
+but **only one operator at a time**. Configure the same existing Google Drive
+**mirrored** folder when prompted. The live `var/finops.db` stays on that PC;
+`gst8020-current.sqlite3` in Drive is a *closed, consistent handoff copy*.
+The Drive folder should be accessible only to the authorized client users.
+
+1. Before starting, close the portal on every other PC and wait until Google
+   Drive on the previous PC and this PC both report **Up to date**.
+2. Start `deploy.bat`. It installs dependencies, then loads the latest current
+   copy into the local SQLite database **before** opening the portal. On the
+   first PC only, confirm `FIRST` to initialize the current copy. On a second
+   PC's first load, confirm `ADOPT`: its initial local database is preserved
+   as `var/finops-before-pull-*.sqlite3` before replacement. Use the shared
+   database's administrator credentials, not the second PC's bootstrap ones.
+3. Work normally. A dated, integrity-checked snapshot is written after the
+   first successful calculation of each day to the same Drive folder. This is
+   a recovery point, not the current handoff file.
+4. Close the BAT window with Ctrl+C. The launcher publishes a consistent
+   current copy after the web server stops. **Do not let the next PC start until
+   Drive reports Up to date** on both PCs.
+
+If the launcher says **HANDOFF FAILED**, do not let another PC start. Preserve
+the local `var/finops.db` and Drive folder, then reconcile manually. The launcher
+refuses to overwrite local work changed since its last handoff, or a visible
+newer current copy in Drive. A failed or killed BAT session may leave work only
+in the local database. To retry a publish after the app has stopped, run
+`.venv\Scripts\python.exe -m app.handoff publish` on that PC. Do **not** manually
+replace the current file or delete the local handoff state to bypass a conflict.
+
+This is **not live multi-user synchronization**. Google Drive has no transaction
+lock across the PCs, and a not-yet-synced remote edit is invisible to the
+launcher. Sequential use and completed sync are operational requirements. If
+two operators must work simultaneously, use one PC hosting the app over LAN
+or a proper shared database service instead. If the client has no internet,
+the mirrored copy remains local until Drive can sync; cross-PC handoff must wait.
+
+## Offline 14-day licences
+
+Each PC has a separate installation ID (`var/installation-id`, also printed by
+the installer and shown under Administration → Licence). Send that ID to the
+licence issuer. The issuer generates a signed `license.json` bound to that ID
+and gives it to the client to put at `var/license.json` on that PC. Restart or
+refresh the portal. The 14-day term starts when that valid licence is first
+used. After expiry, the portal allows historical viewing and exports but
+rejects new calculations and other business writes. An invalid/missing licence
+also leaves the portal read-only. This is an offline commercial control, not
+tamper-proof protection against someone with source-code and clock access.
+
+The issuer keeps the Ed25519 private key **off client PCs and out of Git**.
+Issuer-only commands (run from a protected machine, after installing
+`requirements.txt`):
+
+```powershell
+python issue_license.py keygen --private-key C:\issuer-only\gst8020-private.pem --public-key app\license_public_key.pem
+python issue_license.py issue --private-key C:\issuer-only\gst8020-private.pem --installation-id <CLIENT-PC-ID> --customer "Client name" --output C:\issuer-only\license.json
+```
+
+Only `app/license_public_key.pem` ships with the client package. Never run
+`keygen` again after distributing the public key: it would invalidate existing
+licences. Protect both the issuer private key and delivered licence files.
+
+---
+
 The application is a Python ASGI web app with a PostgreSQL database. It serves every
 asset itself — no CDN, no web fonts, no outbound internet — so it runs on an isolated
 server on the client's network.
@@ -220,9 +285,20 @@ and check the headline percentage against the last figure the team calculated by
 
 ## 6. Backups
 
-Everything that matters is in PostgreSQL — calculations, resolutions, the GSTIN master,
-the audit trail. The uploaded spreadsheets are not needed to reproduce a run, because
-each run stores its own rows and the masters it used.
+Calculations, resolutions, the GSTIN master, the audit trail, and licence
+activations are in the database. The uploaded spreadsheets are not needed to
+reproduce a saved run, because each run stores its own rows and masters.
+
+For the Windows-PC workflow above, `BACKUP_DIR` points to the client's existing
+mirrored Drive folder. A successful calculation creates one dated SQLite
+snapshot per PC per local calendar day after its first run. The current handoff
+copy is separate and is refreshed when the BAT session ends normally. Check
+that Google Drive has actually synced; a successful local file copy does not
+confirm upload to Google's cloud. Keep historical dated backups rather than
+relying solely on the current copy. Test restoration on a spare PC.
+
+For a PostgreSQL deployment, the app also attempts a daily `pg_dump` after the
+first successful run; `pg_dump` must be installed and on PATH. A manual backup:
 
 ```bash
 pg_dump -Fc -U finops finops > /backups/finops-$(date +%F).dump

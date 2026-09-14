@@ -20,6 +20,9 @@
     {% endif %}
   </div>
 </div>
+{% if backup_notice %}
+<div class="callout {% if 'FAILED' in backup_notice %}err{% endif %}" style="margin-bottom:18px">{{ backup_notice }}</div>
+{% endif %}
 
 <section>
   <div class="card hero">

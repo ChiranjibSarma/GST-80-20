@@ -19,6 +19,7 @@ from .auth import (current_user, require_user, verify_password, hash_password,
                    audit, RedirectToLogin, require_csrf)
 from .catalogue import SOLUTIONS
 from .templating import templates
+from .license import evaluate as evaluate_license
 from .routers import gst8020 as gst_router, admin as admin_router
 
 app = FastAPI(title=PORTAL_NAME, docs_url=None, redoc_url=None)
@@ -27,6 +28,23 @@ app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, https_only=SESSION_
 app.mount("/static", StaticFiles(directory=BASE_DIR / "app" / "static"), name="static")
 app.include_router(gst_router.router)
 app.include_router(admin_router.router)
+
+
+@app.middleware("http")
+async def offline_license_gate(request: Request, call_next):
+    """Keep historical reads and exports available when the term ends."""
+    if request.url.path == "/healthz" or request.url.path.startswith("/static/"):
+        return await call_next(request)
+    with SessionLocal() as db:
+        license_status = evaluate_license(db)
+    request.state.license = license_status
+    if (license_status.read_only and request.method not in ("GET", "HEAD", "OPTIONS")
+            and request.url.path != "/login"):
+        return templates.TemplateResponse(
+            request, "error.html",
+            {"user": None, "code": 423, "message": license_status.message,
+             "solutions": SOLUTIONS}, status_code=423)
+    return await call_next(request)
 
 
 @app.on_event("startup")
@@ -109,16 +127,17 @@ def login(request: Request, email: str = Form(...), password: str = Form(...),
              "error": "That email and password combination did not match an active account."},
             status_code=401)
     request.session["uid"] = u.id
-    u.last_login = dt.datetime.now(dt.timezone.utc)
-    audit(db, u, "sign_in", "user", u.id)
-    db.commit()
+    if not request.state.license.read_only:
+        u.last_login = dt.datetime.now(dt.timezone.utc)
+        audit(db, u, "sign_in", "user", u.id)
+        db.commit()
     return RedirectResponse(next or "/", status_code=303)
 
 
 @app.get("/logout")
 def logout(request: Request, db: Session = Depends(get_db)):
     u = current_user(request, db)
-    if u:
+    if u and not request.state.license.read_only:
         audit(db, u, "sign_out", "user", u.id)
         db.commit()
     request.session.clear()

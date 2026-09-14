@@ -265,6 +265,9 @@ if ($rc -ne 0) {
 }
 Select-String -Path $log -Pattern 'Email:|Password:|Database:' |
     ForEach-Object { Info ($_.Line.Trim()) }
+$installationId = & $venvPy -c 'from app.license import installation_id; print(installation_id())'
+if ($LASTEXITCODE -ne 0) { Fail "could not create the offline licence installation ID" }
+Info "Offline licence installation ID: $installationId"
 
 # ------------------------------------------------------------ smoke test ---
 Step "Checking that it serves"
@@ -365,6 +368,8 @@ if ($started) {
 }
 Write-Host ""
 Write-Host "  Sign in with the first-run credentials above, or your existing account."
+Write-Host "  Send the installation ID above to the licence issuer."
+Write-Host "  New calculations remain disabled until var\license.json is installed."
 if (Test-Path (Join-Path $varDir 'first-admin-password.txt')) {
     Write-Host "  The initial password is also in var\first-admin-password.txt." -ForegroundColor DarkGray
 }

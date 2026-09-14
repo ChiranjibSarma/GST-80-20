@@ -3,6 +3,12 @@
 Everything needed is in this folder. No database to install, no administrator
 rights, nothing added to the machine outside this folder.
 
+The signed offline licence also applies to the demo. Obtain a licence for this
+PC's `var/installation-id` and place it at `var/license.json` before uploading
+or seeding. Without it, existing results remain viewable but the demo cannot
+create a new calculation. Do not use `-Reset` on a licensed demo installation:
+resetting local state can lose the activation and saved work.
+
 ---
 
 ## Start it
@@ -42,7 +48,7 @@ Start it normally (`demo.bat` or `./demo.sh`). The portal opens empty.
 ### B. Start with figures already on screen — safer if time is short
 
 ```
-demo.bat -Seed          (Windows)
+    demo.bat -Seed          (Windows, signed licence required)
 ./demo.sh --seed        (macOS / Linux)
 ```
 
@@ -108,12 +114,11 @@ printed there.
 
 ## Worth knowing before you present
 
-- The database is a single file at `var/finops.db`. That is right for a laptop
-  demo; a real deployment uses PostgreSQL, which the installer sets up. See
-  `QUICKSTART.md` and `DEPLOYMENT.md`.
+- The database is a single local file at `var/finops.db`. The client deployment
+  can hand off a closed copy through a mirrored Drive folder, but only one PC
+  may work at a time. See `DEPLOYMENT.md`.
 - The demo password is deliberately simple. A real install generates one.
-- Nothing leaves the machine. The portal serves every asset itself and makes no
-  outbound calls, so it works with the wi-fi off — worth demonstrating if data
-  residency comes up.
+- The portal itself serves every asset and makes no outbound calls. A configured
+  Google Drive client separately syncs database copies when internet is available.
 - The figures on screen are computed live from the July 2026 exports, not
   hard-coded. Editing a master and re-running visibly changes them.

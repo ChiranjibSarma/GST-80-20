@@ -35,6 +35,15 @@ class User(Base):
     def is_admin(self):    return self.role == "admin"
 
 
+class LicenseActivation(Base):
+    """First use of each signed offline licence on this installation."""
+    __tablename__ = "license_activations"
+    license_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    installation_id: Mapped[str] = mapped_column(String(36), index=True)
+    activated_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True))
+    last_seen_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True))
+
+
 class Run(Base):
     """One month's calculation, kept as a permanent snapshot."""
     __tablename__ = "runs"

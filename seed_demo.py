@@ -26,6 +26,8 @@ from app.engine import readers as R                                    # noqa: E
 from app.engine.golden import calculate                            # noqa: E402
 from app.engine.calc import summarise_portfolio, summarise_by_project # noqa: E402
 from app.routers.gst8020 import import_creditors, load_config, RESOLVED_STATUSES  # noqa: E402
+from app.license import evaluate as evaluate_license            # noqa: E402
+from app.backup import backup_after_run                           # noqa: E402
 
 INPUTS = BASE / "demo-inputs"
 FILES = {
@@ -45,6 +47,10 @@ def main():
     Base.metadata.create_all(engine)
 
     with SessionLocal() as db:
+        licence = evaluate_license(db)
+        if licence.read_only:
+            print(f"Demo seed stopped: {licence.message}", file=sys.stderr)
+            return 1
         user = db.scalar(select(User).order_by(User.id))
         cfg = load_config(db)
 
@@ -124,6 +130,11 @@ def main():
 
     print(f"    {period}: {len(rows):,} reportable lines, "
           f"{stats['pct']:.2f}% registered, {open_items} open rectifications")
+    try:
+        _, message = backup_after_run()
+        print(f"    {message}")
+    except (OSError, RuntimeError, ValueError) as exc:
+        print(f"    WARNING: calculation saved but daily backup failed: {exc}", file=sys.stderr)
     return 0
 
 

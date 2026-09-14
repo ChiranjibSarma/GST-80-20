@@ -94,6 +94,10 @@ DATABASE_URL = _database_url()
 SECRET_KEY = _secret_key()
 SESSION_HTTPS_ONLY = _bool("SESSION_HTTPS_ONLY", False)
 UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", VAR_DIR / "uploads"))
+# Point this at an existing client-controlled, mirrored Google Drive folder.
+# The live database remains on the host's local disk.
+BACKUP_DIR = Path(os.getenv("BACKUP_DIR", VAR_DIR / "backups"))
+BACKUP_DIR_EXPLICIT = bool(os.getenv("BACKUP_DIR", "").strip())
 BOOTSTRAP_ADMIN_EMAIL = os.getenv("BOOTSTRAP_ADMIN_EMAIL", "admin@example.com").strip().lower()
 BOOTSTRAP_ADMIN_PASSWORD = _bootstrap_password()
 
