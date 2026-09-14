@@ -23,6 +23,6 @@ exit /b 0
 
 :usage
 echo Usage: deploy.bat [port]
-echo Sets up dependencies, launches the portal locally, and opens a browser.
+echo Sets up dependencies, chooses the next available local port, and opens a browser.
 echo If Python is missing, Windows Package Manager will try to install it.
 exit /b 0

@@ -4,6 +4,7 @@ Copy this folder to the server, then run one command.
 
 For a Windows PC, double-click `deploy.bat` instead. It installs the Python
 packages, creates a local database, starts the portal and opens the browser.
+If port 8080 is occupied, it automatically selects the next available port.
 Each PC keeps its own independent SQLite database. You can optionally choose
 an existing Google Drive mirrored folder for dated backups; it is not used
 to load or synchronize the database. See `DEPLOYMENT.md`.

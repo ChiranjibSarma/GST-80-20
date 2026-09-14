@@ -13,7 +13,6 @@ $ErrorActionPreference = 'Stop'
 $appDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $installer = Join-Path $appDir 'install.ps1'
 $server = Join-Path $appDir '.venv\Scripts\uvicorn.exe'
-$url = "http://127.0.0.1:$Port"
 Set-Location $appDir
 
 function Test-PythonAvailable {
@@ -36,22 +35,30 @@ if (-not (Test-Path $installer)) {
     exit 1
 }
 
-# Do not mistake another already-running local service for this launch.
-$socket = New-Object System.Net.Sockets.TcpClient
-$portInUse = $false
-$serverExit = 1
-try {
-    $socket.Connect('127.0.0.1', $Port)
-    $portInUse = $true
-} catch {
-    # A failed connection means nothing is listening on this local port.
-} finally {
-    $socket.Dispose()
+# Probe by binding, not connecting: an occupied/reserved port may not answer
+# a connection, but Uvicorn still could not bind to it.
+$requestedPort = $Port
+while ($Port -le 65535) {
+    $probe = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, $Port)
+    $probe.ExclusiveAddressUse = $true
+    try {
+        $probe.Start()
+        break
+    } catch [System.Net.Sockets.SocketException] {
+        $Port++
+    } finally {
+        $probe.Stop()
+    }
 }
-if ($portInUse) {
-    Write-Error "Port $Port is already in use. Try deploy.bat 8081 or stop the other service."
+if ($Port -gt 65535) {
+    Write-Error "No available local TCP port was found from $requestedPort through 65535."
     exit 1
 }
+if ($Port -ne $requestedPort) {
+    Write-Host "Port $requestedPort is unavailable; using port $Port instead." -ForegroundColor Yellow
+}
+$url = "http://127.0.0.1:$Port"
+$serverExit = 1
 
 if (-not (Test-PythonAvailable)) {
     $winget = Get-Command winget.exe -ErrorAction SilentlyContinue
@@ -102,8 +109,10 @@ if (-not (Test-Path $server)) {
 # Backups may go to a client-controlled Google Drive mirror, but the live
 # database is local and never loaded from or published to that folder.
 $python = Join-Path $appDir '.venv\Scripts\python.exe'
-$configuredBackupDir = (& $python -c 'from app.config import BACKUP_DIR, BACKUP_DIR_EXPLICIT; print(BACKUP_DIR if BACKUP_DIR_EXPLICIT else "")').Trim()
-if ($LASTEXITCODE -ne 0) { throw 'Could not read the backup folder configuration.' }
+$backupOutput = & $python -m app.deploy_check backup-dir
+if ($LASTEXITCODE -ne 0) { Write-Error 'Could not read the backup folder configuration.'; exit 1 }
+$configuredBackupDir = [string]($backupOutput | Select-Object -First 1)
+$configuredBackupDir = $configuredBackupDir.Trim()
 if (-not $configuredBackupDir) {
     Write-Host ''
     Write-Host 'Optional: enter an existing Google Drive MIRRORED folder for dated backups.' -ForegroundColor Yellow
@@ -123,9 +132,12 @@ if (-not $configuredBackupDir) {
 if ($configuredBackupDir -and -not (Test-Path -LiteralPath $configuredBackupDir -PathType Container)) {
     Write-Warning "Configured backup folder is unavailable: $configuredBackupDir. Calculations can run, but the daily backup will fail until the folder returns."
 }
-$liveDatabase = (& $python -c 'from pathlib import Path; from app.config import DATABASE_URL, BACKUP_DIR, BACKUP_DIR_EXPLICIT; from app.db import engine; assert DATABASE_URL.startswith("sqlite"), "deploy.bat requires local SQLite; remove the old DATABASE_URL from .env"; p=Path(engine.url.database).resolve(); assert not (BACKUP_DIR_EXPLICIT and (p == BACKUP_DIR.resolve() or BACKUP_DIR.resolve() in p.parents)), "live SQLite database cannot be inside the backup folder"; print(p)')
+$liveDatabase = & $python -m app.deploy_check local-db
 if ($LASTEXITCODE -ne 0) { Write-Error 'The configured database is not a safe local SQLite file. Review DATABASE_URL in .env.'; exit 1 }
 Write-Host "Live database: $liveDatabase"
+if ([string]$liveDatabase -match '(?i)[\\/](?:OneDrive[^\\/]*|Google Drive|Dropbox)[\\/]') {
+    Write-Warning 'The live database is inside a synced folder. For client deployment, copy the app to a non-synced local folder before use; configure Drive only as the backup destination.'
+}
 
 Write-Host ""
 Write-Host "Opening $url when the portal is ready. Keep this window open; Ctrl+C stops it."

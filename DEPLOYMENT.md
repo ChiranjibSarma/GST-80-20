@@ -2,8 +2,11 @@
 
 ## Windows PC: local SQLite database
 
-Run `deploy.bat` on the client PC. Its live database is `var/finops.db` on that
-same PC. The launcher never loads a database from Google Drive and never
+Copy the app to a **non-synced local folder** on the client PC, then run
+`deploy.bat`. Its live database is `var/finops.db` on that same PC. Do not run
+the working copy from OneDrive, Google Drive, or Dropbox: `var/finops.db` would
+otherwise be a live database in a synced folder. The launcher warns if it
+recognizes such a path. It never loads a database from Google Drive and never
 publishes a current/shared copy. Another PC running its own BAT has a **separate
 database**, even if both PCs use the same backup folder. No cross-PC
 synchronization or reconciliation is provided.

@@ -70,6 +70,8 @@ and is never loaded from or published as a shared Drive copy. A dated,
 integrity-checked backup is made after the first successful calculation each day.
 It then starts the portal at `http://127.0.0.1:8080` and opens a browser. Keep the
 console open; Ctrl+C stops the server. Use `deploy.bat 8081` for a different port.
+If the requested port is occupied, the launcher automatically uses the next
+available port and opens the browser at that address.
 This launcher binds only to the local PC. Each installation has an independent
 database; the app does not synchronize users' records across PCs.
 See `DEPLOYMENT.md` for backup and recovery steps.
