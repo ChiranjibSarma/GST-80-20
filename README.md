@@ -64,16 +64,15 @@ Manager (`winget`); if that is unavailable or restricted, install Python manuall
 and select *Add Python to PATH*. It uses `install.ps1` to create `.venv`,
 install `requirements.txt` (from the internet or an optional local `wheelhouse/`),
 prepare a local SQLite database and generate the initial administrator password.
-On first launch it asks for an existing **mirrored** client-only Google Drive folder.
-With that folder configured, it loads the shared *closed* database copy before
-starting and publishes an updated copy when the window closes. It also saves a
-dated, integrity-checked backup after the first successful calculation each day.
+On first launch it optionally asks for an existing **mirrored** client-only
+Google Drive folder for dated backups. The live SQLite database remains local
+and is never loaded from or published as a shared Drive copy. A dated,
+integrity-checked backup is made after the first successful calculation each day.
 It then starts the portal at `http://127.0.0.1:8080` and opens a browser. Keep the
 console open; Ctrl+C stops the server. Use `deploy.bat 8081` for a different port.
-This launcher binds only to the local PC. **Only one person may use the shared
-Drive handoff at a time.** Wait for Drive to say *Up to date* before the next
-person starts; the app cannot verify sync completion or enforce a lock across PCs.
-See `DEPLOYMENT.md` for the exact handoff and recovery steps.
+This launcher binds only to the local PC. Each installation has an independent
+database; the app does not synchronize users' records across PCs.
+See `DEPLOYMENT.md` for backup and recovery steps.
 
 Each PC requires its own signed 14-day licence file, activated on first valid
 use. After expiry, existing results and exports stay readable but new changes

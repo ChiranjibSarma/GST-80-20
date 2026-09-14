@@ -1,42 +1,26 @@
 # Deployment
 
-## Windows PCs: sequential handoff through Google Drive
+## Windows PC: local SQLite database
 
-The client has no shared server. Each operator runs `deploy.bat` on their own PC,
-but **only one operator at a time**. Configure the same existing Google Drive
-**mirrored** folder when prompted. The live `var/finops.db` stays on that PC;
-`gst8020-current.sqlite3` in Drive is a *closed, consistent handoff copy*.
-The Drive folder should be accessible only to the authorized client users.
+Run `deploy.bat` on the client PC. Its live database is `var/finops.db` on that
+same PC. The launcher never loads a database from Google Drive and never
+publishes a current/shared copy. Another PC running its own BAT has a **separate
+database**, even if both PCs use the same backup folder. No cross-PC
+synchronization or reconciliation is provided.
 
-1. Before starting, close the portal on every other PC and wait until Google
-   Drive on the previous PC and this PC both report **Up to date**.
-2. Start `deploy.bat`. It installs dependencies, then loads the latest current
-   copy into the local SQLite database **before** opening the portal. On the
-   first PC only, confirm `FIRST` to initialize the current copy. On a second
-   PC's first load, confirm `ADOPT`: its initial local database is preserved
-   as `var/finops-before-pull-*.sqlite3` before replacement. Use the shared
-   database's administrator credentials, not the second PC's bootstrap ones.
-3. Work normally. A dated, integrity-checked snapshot is written after the
-   first successful calculation of each day to the same Drive folder. This is
-   a recovery point, not the current handoff file.
-4. Close the BAT window with Ctrl+C. The launcher publishes a consistent
-   current copy after the web server stops. **Do not let the next PC start until
-   Drive reports Up to date** on both PCs.
+On first launch, the BAT optionally asks for an existing Google Drive
+**mirrored** folder for dated backups. Leave it blank to use local
+`var/backups`. After the first successful calculation each day, the app makes
+an integrity-checked SQLite snapshot there. A backup file is for recovery;
+do not run the application against a database inside the synced folder.
+If Drive is unavailable, the calculation remains saved locally and the app
+shows a backup-failure warning. Check that Drive actually reports *Up to date*
+before counting a Drive backup as off-PC protection.
 
-If the launcher says **HANDOFF FAILED**, do not let another PC start. Preserve
-the local `var/finops.db` and Drive folder, then reconcile manually. The launcher
-refuses to overwrite local work changed since its last handoff, or a visible
-newer current copy in Drive. A failed or killed BAT session may leave work only
-in the local database. To retry a publish after the app has stopped, run
-`.venv\Scripts\python.exe -m app.handoff publish` on that PC. Do **not** manually
-replace the current file or delete the local handoff state to bypass a conflict.
-
-This is **not live multi-user synchronization**. Google Drive has no transaction
-lock across the PCs, and a not-yet-synced remote edit is invisible to the
-launcher. Sequential use and completed sync are operational requirements. If
-two operators must work simultaneously, use one PC hosting the app over LAN
-or a proper shared database service instead. If the client has no internet,
-the mirrored copy remains local until Drive can sync; cross-PC handoff must wait.
+If an earlier release created `gst8020-current.sqlite3` or
+`var/handoff-state.json`, this release ignores them; it does not delete them
+or replace the local database. Keep them until you have verified which local
+database contains the records you need.
 
 ## Offline 14-day licences
 
@@ -65,7 +49,8 @@ licences. Protect both the issuer private key and delivered licence files.
 
 ---
 
-The application is a Python ASGI web app with a PostgreSQL database. It serves every
+The application is a Python ASGI web app. The Windows BAT uses local SQLite; a
+separate server deployment may use PostgreSQL. It serves every
 asset itself — no CDN, no web fonts, no outbound internet — so it runs on an isolated
 server on the client's network.
 
@@ -289,13 +274,12 @@ Calculations, resolutions, the GSTIN master, the audit trail, and licence
 activations are in the database. The uploaded spreadsheets are not needed to
 reproduce a saved run, because each run stores its own rows and masters.
 
-For the Windows-PC workflow above, `BACKUP_DIR` points to the client's existing
+For the Windows-PC workflow above, `BACKUP_DIR` may point to the client's existing
 mirrored Drive folder. A successful calculation creates one dated SQLite
-snapshot per PC per local calendar day after its first run. The current handoff
-copy is separate and is refreshed when the BAT session ends normally. Check
-that Google Drive has actually synced; a successful local file copy does not
-confirm upload to Google's cloud. Keep historical dated backups rather than
-relying solely on the current copy. Test restoration on a spare PC.
+snapshot per PC per local calendar day after its first run. Check that Google
+Drive has actually synced; a successful local file copy does not confirm
+upload to Google's cloud. Keep historical dated backups and test restoration
+on a spare PC.
 
 For a PostgreSQL deployment, the app also attempts a daily `pg_dump` after the
 first successful run; `pg_dump` must be installed and on PATH. A manual backup:

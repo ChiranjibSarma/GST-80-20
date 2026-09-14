@@ -79,6 +79,18 @@ if (-not (Test-PythonAvailable)) {
     }
 }
 
+# install.ps1 preserves an existing DATABASE_URL even with -Sqlite. Reject a
+# previous server configuration before its first-run database preparation.
+$existingEnv = Join-Path $appDir '.env'
+if (Test-Path -LiteralPath $existingEnv) {
+    $dbLine = Select-String -Path $existingEnv -Pattern '^\s*DATABASE_URL\s*=\s*(.*)$' |
+              Select-Object -Last 1
+    if ($dbLine -and $dbLine.Matches[0].Groups[1].Value.Trim().Trim('"').Trim("'") -notmatch '^sqlite') {
+        Write-Error 'deploy.bat requires local SQLite. Remove the old DATABASE_URL from .env only after preserving its database.'
+        exit 1
+    }
+}
+
 Write-Host "Setting up the portal (Python 3.11+ and internet, or wheelhouse/, required)..."
 & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -NoService -Sqlite -Port $Port
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -87,17 +99,16 @@ if (-not (Test-Path $server)) {
     exit 1
 }
 
-# A mirrored Drive folder transports a *closed* database between operators.
-# Never point DATABASE_URL itself at that folder. The handoff cannot detect a
-# remote PC whose Drive client has not synced yet; operators must coordinate.
+# Backups may go to a client-controlled Google Drive mirror, but the live
+# database is local and never loaded from or published to that folder.
 $python = Join-Path $appDir '.venv\Scripts\python.exe'
 $configuredBackupDir = (& $python -c 'from app.config import BACKUP_DIR, BACKUP_DIR_EXPLICIT; print(BACKUP_DIR if BACKUP_DIR_EXPLICIT else "")').Trim()
 if ($LASTEXITCODE -ne 0) { throw 'Could not read the backup folder configuration.' }
 if (-not $configuredBackupDir) {
     Write-Host ''
-    Write-Host 'For one-at-a-time handoff, enter an existing Google Drive MIRRORED folder.' -ForegroundColor Yellow
-    Write-Host 'Leave blank to run only on this PC without shared handoff.' -ForegroundColor Yellow
-    $configuredBackupDir = (Read-Host 'Mirrored Drive folder').Trim()
+    Write-Host 'Optional: enter an existing Google Drive MIRRORED folder for dated backups.' -ForegroundColor Yellow
+    Write-Host 'Leave blank to keep backups in local var\backups.' -ForegroundColor Yellow
+    $configuredBackupDir = (Read-Host 'Backup folder').Trim()
     if ($configuredBackupDir) {
         if (-not (Test-Path -LiteralPath $configuredBackupDir -PathType Container)) {
             Write-Error "Folder does not exist: $configuredBackupDir"
@@ -109,38 +120,12 @@ if (-not $configuredBackupDir) {
         $env:BACKUP_DIR = $configuredBackupDir
     }
 }
-
-$useHandoff = [bool]$configuredBackupDir
-if ($useHandoff) {
-    if (-not (Test-Path -LiteralPath $configuredBackupDir -PathType Container)) {
-        Write-Error "The configured Drive folder is unavailable: $configuredBackupDir. Wait for Drive to sync."
-        exit 1
-    }
-    Write-Host ''
-    Write-Host 'Confirm Google Drive reports Up to date and no other person has the portal open.' -ForegroundColor Yellow
-    $ready = Read-Host 'Type YES to continue'
-    if ($ready -cne 'YES') { Write-Error 'Database handoff cancelled.'; exit 1 }
-    $currentDb = Join-Path $configuredBackupDir 'gst8020-current.sqlite3'
-    if (Test-Path -LiteralPath $currentDb) {
-        $handoffState = Join-Path $appDir 'var\handoff-state.json'
-        if (Test-Path -LiteralPath $handoffState) {
-            & $python -m app.handoff pull
-        } else {
-            Write-Host 'First load on this PC: its current local database will be preserved before replacement.' -ForegroundColor Yellow
-            Write-Host 'After loading, use the administrator credentials from the shared database.' -ForegroundColor Yellow
-            $adopt = Read-Host 'Type ADOPT to load the shared database'
-            if ($adopt -cne 'ADOPT') { Write-Error 'First load cancelled.'; exit 1 }
-            & $python -m app.handoff pull --adopt
-        }
-    } else {
-        Write-Host 'No current database appears in this Drive folder.' -ForegroundColor Yellow
-        Write-Host 'Only the FIRST operator may initialize it; do not do this if another PC has a copy still syncing.' -ForegroundColor Yellow
-        $initialize = Read-Host 'Type FIRST to initialize from this PC'
-        if ($initialize -cne 'FIRST') { Write-Error 'Initialization cancelled.'; exit 1 }
-        & $python -m app.handoff publish --initialize
-    }
-    if ($LASTEXITCODE -ne 0) { Write-Error 'Database handoff failed. The portal was not opened.'; exit 1 }
+if ($configuredBackupDir -and -not (Test-Path -LiteralPath $configuredBackupDir -PathType Container)) {
+    Write-Warning "Configured backup folder is unavailable: $configuredBackupDir. Calculations can run, but the daily backup will fail until the folder returns."
 }
+$liveDatabase = (& $python -c 'from pathlib import Path; from app.config import DATABASE_URL, BACKUP_DIR, BACKUP_DIR_EXPLICIT; from app.db import engine; assert DATABASE_URL.startswith("sqlite"), "deploy.bat requires local SQLite; remove the old DATABASE_URL from .env"; p=Path(engine.url.database).resolve(); assert not (BACKUP_DIR_EXPLICIT and (p == BACKUP_DIR.resolve() or BACKUP_DIR.resolve() in p.parents)), "live SQLite database cannot be inside the backup folder"; print(p)')
+if ($LASTEXITCODE -ne 0) { Write-Error 'The configured database is not a safe local SQLite file. Review DATABASE_URL in .env.'; exit 1 }
+Write-Host "Live database: $liveDatabase"
 
 Write-Host ""
 Write-Host "Opening $url when the portal is ready. Keep this window open; Ctrl+C stops it."
@@ -164,14 +149,5 @@ try {
 } finally {
     Stop-Job $browserJob -ErrorAction SilentlyContinue
     Remove-Job $browserJob -Force -ErrorAction SilentlyContinue
-    if ($useHandoff) {
-        Write-Host ''
-        Write-Host 'Publishing a consistent current database for the next operator...'
-        & $python -m app.handoff publish
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host 'HANDOFF FAILED. Do not let another PC start until this local database is recovered or reconciled.' -ForegroundColor Red
-            $serverExit = 1
-        }
-    }
 }
 exit $serverExit

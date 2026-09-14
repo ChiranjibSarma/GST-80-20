@@ -114,9 +114,9 @@ printed there.
 
 ## Worth knowing before you present
 
-- The database is a single local file at `var/finops.db`. The client deployment
-  can hand off a closed copy through a mirrored Drive folder, but only one PC
-  may work at a time. See `DEPLOYMENT.md`.
+- The database is a single local file at `var/finops.db`. Each client PC has its
+  own database; an optional Drive folder holds dated backups only. See
+  `DEPLOYMENT.md`.
 - The demo password is deliberately simple. A real install generates one.
 - The portal itself serves every asset and makes no outbound calls. A configured
   Google Drive client separately syncs database copies when internet is available.
