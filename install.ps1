@@ -63,7 +63,7 @@ Write-Host "Installing into $AppDir" -ForegroundColor DarkGray
 # ---------------------------------------------------------------- python ---
 Step "Checking Python"
 $py = $null
-foreach ($cand in @('py -3.13', 'py -3.12', 'py -3.11', 'python', 'python3')) {
+foreach ($cand in @('py -3.13', 'py -3.12', 'py -3.11', 'py -3', 'python', 'python3')) {
     $exe, $arg = $cand -split ' ', 2
     if (-not (Get-Command $exe -ErrorAction SilentlyContinue)) { continue }
     try {
@@ -364,7 +364,10 @@ if ($started) {
     Write-Host "  Then open http://${ip}:$Port" -ForegroundColor White
 }
 Write-Host ""
-Write-Host "  Sign in with the email and password shown above."
+Write-Host "  Sign in with the first-run credentials above, or your existing account."
+if (Test-Path (Join-Path $varDir 'first-admin-password.txt')) {
+    Write-Host "  The initial password is also in var\first-admin-password.txt." -ForegroundColor DarkGray
+}
 Write-Host "  Change that password under Administration - Users straight away." -ForegroundColor DarkGray
 Write-Host ""
 Write-Host "  Next: serve it over HTTPS behind IIS - see section 4 of DEPLOYMENT.md." -ForegroundColor White

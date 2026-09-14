@@ -1,5 +1,5 @@
 @echo off
-REM One-click Windows setup and local launch. Python 3.11+ is required.
+REM One-click Windows setup and local launch.
 REM Usage: deploy.bat [port]   (default: 8080)
 setlocal
 cd /d "%~dp0"
@@ -24,5 +24,5 @@ exit /b 0
 :usage
 echo Usage: deploy.bat [port]
 echo Sets up dependencies, launches the portal locally, and opens a browser.
-echo Python 3.11 or newer must be installed on this computer.
+echo If Python is missing, Windows Package Manager will try to install it.
 exit /b 0

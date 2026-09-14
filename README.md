@@ -58,8 +58,10 @@ tests/
 **Demoing it on a laptop? See `DEMO.md`** — double-click `demo.bat` on Windows, or run
 `./demo.sh` on macOS/Linux. No database, no administrator rights.
 
-**Starting on a fresh Windows PC?** Install Python 3.11 or newer (select *Add Python
-to PATH*), then double-click `deploy.bat`. It uses `install.ps1` to create `.venv`,
+**Starting on a fresh Windows PC?** Double-click `deploy.bat`. If Python 3.11+
+is absent, it attempts a per-user Python 3.12 install through Windows Package
+Manager (`winget`); if that is unavailable or restricted, install Python manually
+and select *Add Python to PATH*. It uses `install.ps1` to create `.venv`,
 install `requirements.txt` (from the internet or an optional local `wheelhouse/`),
 prepare a local SQLite database and generate the initial administrator password.
 It then starts the portal at `http://127.0.0.1:8080` and opens a browser. Keep the

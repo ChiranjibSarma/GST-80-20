@@ -16,6 +16,21 @@ $server = Join-Path $appDir '.venv\Scripts\uvicorn.exe'
 $url = "http://127.0.0.1:$Port"
 Set-Location $appDir
 
+function Test-PythonAvailable {
+    foreach ($command in @('py', 'python', 'python3')) {
+        if (-not (Get-Command $command -ErrorAction SilentlyContinue)) { continue }
+        try {
+            $check = if ($command -eq 'py') {
+                & $command -3 -c 'import sys;print(sys.version_info >= (3, 11))' 2>$null
+            } else {
+                & $command -c 'import sys;print(sys.version_info >= (3, 11))' 2>$null
+            }
+            if ($check -eq 'True') { return $true }
+        } catch { }
+    }
+    return $false
+}
+
 if (-not (Test-Path $installer)) {
     Write-Error "Missing install.ps1 in $appDir"
     exit 1
@@ -35,6 +50,32 @@ try {
 if ($portInUse) {
     Write-Error "Port $Port is already in use. Try deploy.bat 8081 or stop the other service."
     exit 1
+}
+
+if (-not (Test-PythonAvailable)) {
+    $winget = Get-Command winget.exe -ErrorAction SilentlyContinue
+    if (-not $winget) {
+        Write-Error "Python 3.11+ is missing and winget is unavailable. Install Python from https://www.python.org/downloads/windows/ (select Add Python to PATH), then rerun deploy.bat."
+        exit 1
+    }
+    Write-Host 'Python 3.11+ was not found. Installing Python 3.12 for this user with Windows Package Manager...'
+    & $winget.Source install --id Python.Python.3.12 --exact --source winget --scope user --silent --accept-package-agreements --accept-source-agreements
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Windows Package Manager could not install Python. Install it from https://www.python.org/downloads/windows/ (select Add Python to PATH), then rerun deploy.bat."
+        exit 1
+    }
+    foreach ($pythonDir in @(
+        (Join-Path $env:LOCALAPPDATA 'Programs\Python\Python312'),
+        (Join-Path $env:ProgramFiles 'Python312')
+    )) {
+        if (Test-Path (Join-Path $pythonDir 'python.exe')) {
+            $env:PATH = "$pythonDir;$env:PATH"
+        }
+    }
+    if (-not (Test-PythonAvailable)) {
+        Write-Error 'Python was installed but is not visible yet. Close this window and run deploy.bat again.'
+        exit 1
+    }
 }
 
 Write-Host "Setting up the portal (Python 3.11+ and internet, or wheelhouse/, required)..."
