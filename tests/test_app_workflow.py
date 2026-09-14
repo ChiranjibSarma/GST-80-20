@@ -1,0 +1,124 @@
+"""End-to-end HTTP workflow: upload golden inputs, persist, freeze, reject change."""
+import os
+from pathlib import Path
+import tempfile
+import io
+import re
+import html
+import openpyxl
+
+TEST_VAR = tempfile.mkdtemp(prefix="gst8020-test-")
+os.environ["VAR_DIR"] = TEST_VAR
+os.environ["BOOTSTRAP_ADMIN_EMAIL"] = "admin@test.local"
+os.environ["BOOTSTRAP_ADMIN_PASSWORD"] = "GoldenTestPassword1"
+
+from fastapi.testclient import TestClient
+from sqlalchemy import select, func
+
+from app.main import app
+from app.db import SessionLocal
+from app.models import Run, RunRow, Rectification, AuditLog, Creditor
+
+ROOT = Path(__file__).resolve().parents[1]
+REF = ROOT / "reference"
+
+
+def upload_payload():
+    return {
+        "daybook": ("DayBookRegister.xlsx", (REF / "DayBookRegister.xlsx").read_bytes()),
+        "voucher": ("Search Voucher.xlsx", (REF / "Search Voucher.xlsx").read_bytes()),
+        "creditors": ("Creditors Details (1).xlsx", (REF / "Creditors Details (1).xlsx").read_bytes()),
+    }
+
+
+def main():
+    with TestClient(app) as client:
+        login_page = client.get("/login")
+        assert login_page.status_code == 200
+        csrf = html.unescape(re.search(r'name="csrf_token_value" value="([^"]+)"',
+                                        login_page.text).group(1))
+        assert client.post("/login", data={"email": "admin@test.local",
+                                           "password": "GoldenTestPassword1"}).status_code == 403
+        response = client.post("/login", data={"email": "admin@test.local",
+                                                "password": "GoldenTestPassword1",
+                                                "next": "/", "csrf_token_value": csrf},
+                               follow_redirects=False)
+        assert response.status_code == 303
+        response = client.post("/gst8020/new", data={"label": "July 2026 golden run",
+                                                    "csrf_token_value": csrf},
+                               files=upload_payload(), follow_redirects=False)
+        assert response.status_code == 303, response.text[:1000]
+        run_id = int(response.headers["location"].rstrip("/").split("/")[-1])
+        with SessionLocal() as db:
+            assert db.scalar(select(func.count(RunRow.id)).where(RunRow.run_id == run_id)) == 1232
+            assert db.scalar(select(func.count(Rectification.id)).where(Rectification.run_id == run_id)) == 20
+            assert db.scalar(select(func.count(RunRow.id)).where(
+                RunRow.run_id == run_id, RunRow.narration != "")) == 1232
+            assert db.scalar(select(func.count(RunRow.id)).where(
+                RunRow.run_id == run_id, RunRow.flags.like("%gstin_bad_checksum%"))) == 3
+            review_id = db.scalar(select(Rectification.id).where(Rectification.run_id == run_id))
+            creditor_count = db.scalar(select(func.count(Creditor.id)))
+
+        exceptions = client.get(f"/gst8020/runs/{run_id}/exceptions")
+        assert exceptions.status_code == 200
+        assert "Email rule differs" not in exceptions.text
+        assert "GSTIN failed validation" in exceptions.text
+        detail_page = client.get(f"/gst8020/runs/{run_id}/rows")
+        assert detail_page.status_code == 200
+        assert "Source narration" in detail_page.text
+        assert "Correct for next run" not in detail_page.text
+        assert client.post("/gst8020/overrides", data={
+            "raw": "Vendor A", "ledger": "Manual", "csrf_token_value": csrf,
+        }).status_code == 409
+        assert client.post("/gst8020/masters", data={
+            "ineligible_keywords": "", "csrf_token_value": csrf,
+        }).status_code == 409
+
+        exported = client.get(f"/gst8020/runs/{run_id}/export.xlsx")
+        assert exported.status_code == 200
+        got_wb = openpyxl.load_workbook(io.BytesIO(exported.content), read_only=True, data_only=False)
+        want_wb = openpyxl.load_workbook(REF / "80-20_Table_20260903_120741.xlsx",
+                                         read_only=True, data_only=False)
+        got_rows = list(got_wb["80-20 Table"].iter_rows(values_only=True))
+        want_rows = list(want_wb["80-20 Table"].iter_rows(values_only=True))
+        assert got_rows == want_rows
+        got_review = list(got_wb["Needs Review"].iter_rows(values_only=True))
+        want_review = list(want_wb["Needs Review"].iter_rows(values_only=True))
+        assert got_review == want_review
+        for tab in ("Report", "Instant Review Pivot"):
+            got = list(got_wb[tab].iter_rows(values_only=True))
+            want = list(want_wb[tab].iter_rows(values_only=True))
+            assert got == want, f"{tab} differs"
+        quality = list(got_wb["Data Quality"].iter_rows(values_only=True))
+        assert quality[0][-2:] == ("Source Narration", "Flags")
+        assert any("gstin_bad_checksum" in str(row[-1]) and row[-2] for row in quality[1:])
+        got_wb.close()
+        want_wb.close()
+
+        response = client.post(f"/gst8020/runs/{run_id}/freeze",
+                               data={"csrf_token_value": csrf}, follow_redirects=False)
+        assert response.status_code == 303
+        with SessionLocal() as db:
+            run = db.get(Run, run_id)
+            assert run.status == "frozen" and run.frozen_at is not None
+            assert db.scalar(select(func.count(AuditLog.id)).where(
+                AuditLog.action == "freeze_run", AuditLog.entity_id == str(run_id))) == 1
+
+        response = client.post("/gst8020/new", data={"label": "Forbidden replacement",
+                                                    "csrf_token_value": csrf},
+                               files=upload_payload(), follow_redirects=False)
+        assert response.status_code == 409
+        assert "is frozen" in response.text
+        with SessionLocal() as db:
+            assert db.scalar(select(func.count(Run.id))) == 1
+            assert db.scalar(select(func.count(Creditor.id))) == creditor_count
+        response = client.post(f"/gst8020/rectifications/{review_id}",
+                               data={"status": "wont_fix", "csrf_token_value": csrf},
+                               follow_redirects=False)
+        assert response.status_code == 409
+
+    print("PASS: upload/export match golden workbook; freeze audited; replacement rejected")
+
+
+if __name__ == "__main__":
+    main()

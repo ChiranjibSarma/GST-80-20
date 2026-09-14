@@ -1,0 +1,181 @@
+# GST 80:20 Finance Operations Portal
+
+A web application for the Accounts & Finance department, deployed on the client's own
+server. The portal home page is a catalogue of solutions; the first live module is the
+**GST 80:20 Input Credit** calculation. Its calculation engine is a web-safe port of
+the client-approved `reference/80-20.py` script.
+
+## Calculation authority
+
+The attached legacy Python file is the golden source for filtering, party resolution,
+GSTIN matching, keyword treatment, bank handling, RCM behaviour, approved party
+corrections, and the duplicate-CGST repair. `tests/test_golden_workbook.py` compares
+all 1,232 detail rows and all 20 review items with the approved July workbook.
+`tests/test_app_workflow.py` verifies that upload, persistence, and download preserve
+those exact results.
+
+No email-only GST/RCM rule, stored keyword edit or manual ledger override changes
+new calculations. The Python script controls line selection, party and GSTIN
+resolution, eligibility, GST status, reviews and the four canonical workbook
+sheets. Project gap/exposure and supplier rankings are clearly labelled
+supplementary views computed from those saved rows, never alternative inputs
+to the Python calculation.
+
+Everything is served from the application itself — no CDN, no web fonts, no outbound
+internet — so it runs on an isolated network.
+
+```
+deploy.bat           one-click Windows setup and local launch (Python 3.11+ required)
+demo.bat / demo.sh   run it on a laptop for a demo — SQLite, no setup
+demo-inputs/         local-only sample Tally exports; never committed to Git
+seed_demo.py         pre-loads the sample month
+install.sh           one-command install for Linux and macOS
+install.ps1          the same for Windows Server
+make-offline-bundle.sh   builds wheelhouse/ for servers with no internet
+app/
+  main.py            application, sign-in, portal home page
+  catalogue.py       the list of solutions shown on the home page
+  models.py          database tables
+  auth.py            sessions, roles, the audit helper
+  engine/
+    readers.py       reads the three Tally exports
+    gstin.py         GSTIN structure, checksum and PAN cross-check
+    golden.py        the authoritative 80:20 calculation
+    calc.py          reporting summaries; its public calculate alias is golden.py
+    export.py        Excel outputs
+  routers/
+    gst8020.py       the module
+    admin.py         users and the audit trail
+  templates/         Jinja2 pages
+  static/app.css     the single stylesheet
+tests/
+  test_rules.py      asserts a single Python-aligned calculator and key rules
+  test_golden_workbook.py   compares every July output row and review item
+  test_app_workflow.py     exercises upload, export and freeze through HTTP
+  test_august_synthetic.py checks month handling (not genuine August data)
+```
+
+**Demoing it on a laptop? See `DEMO.md`** — double-click `demo.bat` on Windows, or run
+`./demo.sh` on macOS/Linux. No database, no administrator rights.
+
+**Starting on a fresh Windows PC?** Install Python 3.11 or newer (select *Add Python
+to PATH*), then double-click `deploy.bat`. It uses `install.ps1` to create `.venv`,
+install `requirements.txt` (from the internet or an optional local `wheelhouse/`),
+prepare a local SQLite database and generate the initial administrator password.
+It then starts the portal at `http://127.0.0.1:8080` and opens a browser. Keep the
+console open; Ctrl+C stops the server. Use `deploy.bat 8081` for a different port.
+This launcher binds only to the local PC; for a shared HTTPS server, follow
+`DEPLOYMENT.md` instead. Existing `.env` and database contents are preserved.
+
+Only source code and the original `reference/80-20.py` are intended for GitHub.
+Client Excel exports and the approved July output are ignored. The workbook
+parity and HTTP tests require those private files to be placed back under
+`reference/` locally; `seed_demo.py` likewise requires private `demo-inputs/`.
+
+To install it on a server, one command — see **QUICKSTART.md**:
+
+```bash
+sudo ./install.sh          # Linux/macOS
+.\install.ps1              # Windows Server
+```
+
+**DEPLOYMENT.md** covers HTTPS, backups, air-gapped servers and adding the next module.
+
+---
+
+## What the GST 80:20 module does
+
+Under Notification 03/2019-CT(Rate), a promoter must buy at least 80% of inputs and
+input services from registered suppliers, tested **per project for the financial year**,
+with tax payable on any shortfall. This module measures that position and shows what is
+still movable.
+
+### Every month
+
+1. **New calculation** — upload the Day Book, Search Voucher and Creditors exports.
+2. The module resolves the party behind every cost line, applies the rules, and stores
+   the result as a permanent snapshot.
+3. Work the **review queue** for items identified by the golden script.
+4. **Freeze month** when the calculation has been approved.
+
+Freezing is permanent through the application. A frozen month cannot be replaced by
+a new upload and its review decisions cannot be edited. Reporting and downloads remain
+available, and the freeze actor and timestamp are permanently audited.
+Existing frozen snapshots are not rewritten when the calculation engine changes;
+their exported "Masters Used" tab shows the settings originally saved with them.
+
+Re-running a month does not overwrite anything: the earlier run is kept and marked
+superseded, and decisions already made are carried forward to the new run.
+
+### The rules
+
+| | |
+|---|---|
+| Voucher key | `Date \| Voucher_Type \| Voucher_No` — the number alone repeats across types |
+| Party | resolves from the Approved Search Voucher, prioritising a matching GST-bearing creditor, then the largest credit-only non-tax line |
+| Reverse charge | evaluated for the **whole voucher** — the same voucher books both an "…on RCM" liability line and a separate GST cost line, so a per-line check misses it |
+| Eligibility | Mirrors the golden script: keywords match `Account_Name` only, plus its two approved always-ineligible ledgers |
+| GST status | Mirrors the golden script: populated GST No. → Registered; blank → Unregistered, with the approved bank exception |
+| Head | Every included transaction is reported as `Expenses`, matching the approved workbook |
+
+The approved script's specific party/GST corrections and bank behaviour are retained
+in `app/engine/golden.py`. Changing them requires a newly approved golden fixture and
+a corresponding regression-test update.
+
+### What each page is for
+
+| Page | |
+|---|---|
+| Overview / Year to date | The financial-year position per project. A single month is an indicator; this is the test |
+| Run detail | One month, with the summary pivot and where to look next |
+| 80-20 table | Every reportable line, filterable, exactly as the original spreadsheet |
+| Rectification queue | Assign, decide and record. A GSTIN entered here updates the follow-up master; it must also be present in the next uploaded Creditors export to affect a calculation. |
+| Unregistered suppliers | Ranked by spend, spelling variants grouped, so it is clear which few relationships would move the percentage |
+| Exceptions | Credit-side reallocation JVs, invalid GSTINs, parties that resolved to a round-off or bank ledger |
+| Creditors & GSTIN | The master, plus a fill-in sheet to hand out and import back |
+| Archived ledger corrections | Historical settings remain visible for audit but can no longer change new calculations. Correct the source exports or approve a revised Python file. |
+| Masters | The Python keyword list is locked. Its interactive Fixed/Parent Group selections remain available; dashboard-only thresholds are separate. |
+| Audit trail | Who changed what, permanently |
+
+---
+
+## Roles
+
+| Role | |
+|---|---|
+| **Administrator** | everything, plus users and masters |
+| **Preparer** | uploads files, runs calculations, resolves rectifications, edits the GSTIN master |
+| **Viewer** | reads results and reports; cannot change anything |
+
+Every change is written to the audit trail with the person's name — which is what
+explains a movement in the registered percentage to an auditor.
+
+---
+
+## Running the tests
+
+On a development machine, install `requirements-dev.txt` into the virtual
+environment first. The workbook tests also need the private July files under
+`reference/`; those files are intentionally not in GitHub.
+
+```bash
+python -m pip install -r requirements-dev.txt
+python -m tests.test_rules             # single-engine and Python-rule checks
+python -m tests.test_golden_workbook   # exact 1,232-row/20-review comparison
+python -m tests.test_app_workflow      # upload, export, audit and permanent freeze
+python -m tests.test_august_synthetic  # date-shift regression, not real August
+```
+
+---
+
+## A note on the exposure figure
+
+The shortfall amount and the tax on it are **indicators**, built from rates that are
+editable on the Masters page. Confirm the rates and the computation basis with your GST
+advisor before using the figure in a filing. Review flags do not change the golden
+Registered/Unregistered classification; they identify records for follow-up.
+The app additionally shows the source Daybook narration and flags structurally
+invalid GSTINs on Data Quality views. The email no longer supplies competing
+classification rules.
+The four approved workbook sheets remain unchanged; the source script's
+Narration column is intentionally blank in the canonical 80-20 Table export.

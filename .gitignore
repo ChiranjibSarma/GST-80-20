@@ -1,0 +1,24 @@
+.env
+.env.backup
+var/
+wheelhouse/
+__pycache__/
+*.pyc
+.venv/
+.deps/
+.tmp/
+# Client-provided source files and calculated workbooks are local-only.
+demo-inputs/
+reference/*
+!reference/80-20.py
+*.xlsx
+*.xls
+*.csv
+*.eml
+*.msg
+*.zip
+# Local database and installer output (including generated credentials).
+*.db
+*.sqlite
+*.sqlite3
+*.log
