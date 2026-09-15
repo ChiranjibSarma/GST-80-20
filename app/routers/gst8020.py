@@ -304,7 +304,7 @@ async def new_run(request: Request,
         _, request.session["backup_notice"] = backup_after_run()
     except (OSError, RuntimeError, ValueError) as exc:
         request.session["backup_notice"] = (
-            f"Calculation saved, but today's database backup FAILED: {exc}")
+            f"Calculation saved, but its database backup FAILED: {exc}")
     return RedirectResponse(f"/gst8020/runs/{run.id}", status_code=303)
 
 

@@ -243,7 +243,7 @@ if (Test-Path $envFile) {
         "SESSION_HTTPS_ONLY=0        # set to 1 once the site is served over HTTPS",
         "ORG_NAME=Oswal Group",
         "BOOTSTRAP_ADMIN_EMAIL=admin@oswalgroup.net",
-        "# The first password is generated on first start and printed below."
+        "BOOTSTRAP_ADMIN_PASSWORD=admin123456789 # temporary; change after first login"
     )
     Set-Content -Path $envFile -Value $lines -Encoding UTF8
     Info "Created .env"

@@ -70,7 +70,7 @@ prepare a local SQLite database and generate the initial administrator password.
 On first launch it optionally asks for an existing **mirrored** client-only
 Google Drive folder for dated backups. The live SQLite database remains local
 and is never loaded from or published as a shared Drive copy. A dated,
-integrity-checked backup is made after the first successful calculation each day.
+integrity-checked, uniquely timestamped backup is made after every successful calculation save.
 It then starts the portal at `http://127.0.0.1:8080` and opens a browser. Keep the
 console open; Ctrl+C stops the server. Use `deploy.bat 8081` for a different port.
 If the requested port is occupied, the launcher automatically uses the next
@@ -103,6 +103,12 @@ Each PC requires its own signed 14-day licence file, activated on first valid
 use. After expiry, existing results and exports stay readable but new changes
 are blocked. The private signing key must remain with the issuer, not on client
 PCs or in Git. See `DEPLOYMENT.md` for licence issuance and installation.
+
+New installations start with `admin@oswalgroup.net` / `admin123456789`.
+This is a shared temporary password: change it immediately after signing in.
+Upgrading does not reset an existing user's password. Each calculation save
+creates a separate database backup; monitor disk/Drive space and archive old
+snapshots according to your retention policy.
 
 Only source code and the original `reference/80-20.py` are intended for GitHub.
 Client Excel exports and the approved July output are ignored. The workbook

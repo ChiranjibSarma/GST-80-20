@@ -22,6 +22,7 @@ from app.main import app
 from app import license as licensing
 from app.db import SessionLocal
 from app.config import BACKUP_DIR
+from app.backup import backup_after_run
 from app.models import Run, RunRow, Rectification, AuditLog, Creditor, LicenseActivation
 
 # Pre-signed test fixtures use a different public key from the client package.
@@ -137,6 +138,15 @@ def main():
                                files=upload_payload(), follow_redirects=False)
         assert response.status_code == 409
         assert "is frozen" in response.text
+        # A second same-day snapshot must include the newest committed state.
+        created, _ = backup_after_run()
+        assert created
+        later_backups = list(BACKUP_DIR.glob("gst8020-*.sqlite3"))
+        assert len(later_backups) == 2
+        latest = next(path for path in later_backups if path not in backups)
+        with sqlite3.connect(latest) as backup_db:
+            assert backup_db.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+            assert backup_db.execute("SELECT status FROM runs WHERE id = ?", (run_id,)).fetchone()[0] == "frozen"
         with SessionLocal() as db:
             assert db.scalar(select(func.count(Run.id))) == 1
             assert db.scalar(select(func.count(Creditor.id))) == creditor_count

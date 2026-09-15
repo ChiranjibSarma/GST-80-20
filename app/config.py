@@ -7,7 +7,6 @@ writes a proper `.env`, but a missing one is not a failure.
 """
 import os
 import secrets
-import string
 from pathlib import Path
 
 try:
@@ -69,10 +68,9 @@ def _database_url() -> str:
 def _bootstrap_password() -> str:
     """The first administrator's password.
 
-    Generated once and written to `var/first-admin-password.txt` when it was not
-    configured, so an unattended install still produces an account somebody can
-    actually sign in to. The installer prints it; the file should be deleted
-    after the first sign-in.
+    New installations use the agreed temporary password. Existing saved or
+    explicitly configured bootstrap passwords remain unchanged. Change the
+    temporary password immediately after signing in.
     """
     env = os.getenv("BOOTSTRAP_ADMIN_PASSWORD", "").strip()
     if env and "CHANGE" not in env.upper():
@@ -80,8 +78,7 @@ def _bootstrap_password() -> str:
     pw_file = VAR_DIR / "first-admin-password.txt"
     if pw_file.exists():
         return pw_file.read_text(encoding="utf-8").strip()
-    alphabet = string.ascii_letters + string.digits
-    pw = "".join(secrets.choice(alphabet) for _ in range(16))
+    pw = "admin123456789"
     pw_file.write_text(pw, encoding="utf-8")
     try:
         pw_file.chmod(0o600)
@@ -98,7 +95,7 @@ UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", VAR_DIR / "uploads"))
 # The live database remains on this PC's local disk.
 BACKUP_DIR = Path(os.getenv("BACKUP_DIR", VAR_DIR / "backups"))
 BACKUP_DIR_EXPLICIT = bool(os.getenv("BACKUP_DIR", "").strip())
-BOOTSTRAP_ADMIN_EMAIL = os.getenv("BOOTSTRAP_ADMIN_EMAIL", "admin@example.com").strip().lower()
+BOOTSTRAP_ADMIN_EMAIL = os.getenv("BOOTSTRAP_ADMIN_EMAIL", "admin@oswalgroup.net").strip().lower()
 BOOTSTRAP_ADMIN_PASSWORD = _bootstrap_password()
 
 ORG_NAME = os.getenv("ORG_NAME", "Oswal Group")

@@ -13,7 +13,7 @@ synchronization or reconciliation is provided.
 
 On first launch, the BAT optionally asks for an existing Google Drive
 **mirrored** folder for dated backups. Leave it blank to use local
-`var/backups`. After the first successful calculation each day, the app makes
+`var/backups`. After every successful calculation save, the app makes
 an integrity-checked SQLite snapshot there. A backup file is for recovery;
 do not run the application against a database inside the synced folder.
 If Drive is unavailable, the calculation remains saved locally and the app
@@ -87,7 +87,7 @@ sudo ./install.sh          # Linux/macOS
 
 It checks Python, creates `.venv`, installs the dependencies, provisions the PostgreSQL
 role and database, writes `.env` with a generated `SECRET_KEY`, creates the first
-administrator with a generated password, registers a service, and verifies the portal
+administrator with the temporary password, registers a service, and verifies the portal
 answers on its port before reporting success. It stops with a plain explanation if any
 step cannot complete.
 
@@ -162,9 +162,15 @@ python -c "import secrets; print(secrets.token_urlsafe(48))"
 
 Every setting has a working default, so a missing `.env` is not a failure: the application
 generates a secret key into `var/secret.key`, falls back to a SQLite file at
-`var/finops.db`, and generates the first administrator's password into
+`var/finops.db`, and saves the temporary first administrator password into
 `var/first-admin-password.txt`. That file is deleted automatically once the administrator
 changes their password.
+
+New installations use `admin@oswalgroup.net` / `admin123456789`. Change this
+shared temporary password immediately after login. Existing accounts are not
+reset by reinstalling or upgrading. Each saved calculation creates its own
+timestamped backup; monitor backup space and apply a client-approved retention
+policy.
 
 The tables are created on first start. No migration step is needed for a new install.
 
@@ -288,8 +294,8 @@ Drive has actually synced; a successful local file copy does not confirm
 upload to Google's cloud. Keep historical dated backups and test restoration
 on a spare PC.
 
-For a PostgreSQL deployment, the app also attempts a daily `pg_dump` after the
-first successful run; `pg_dump` must be installed and on PATH. A manual backup:
+For a PostgreSQL deployment, the app also attempts `pg_dump` after every
+successful calculation save; `pg_dump` must be installed and on PATH. A manual backup:
 
 ```bash
 pg_dump -Fc -U finops finops > /backups/finops-$(date +%F).dump

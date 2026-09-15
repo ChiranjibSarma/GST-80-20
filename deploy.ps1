@@ -131,7 +131,7 @@ if (-not $configuredBackupDir) {
     }
 }
 if ($configuredBackupDir -and -not (Test-Path -LiteralPath $configuredBackupDir -PathType Container)) {
-    Write-Warning "Configured backup folder is unavailable: $configuredBackupDir. Calculations can run, but the daily backup will fail until the folder returns."
+    Write-Warning "Configured backup folder is unavailable: $configuredBackupDir. Calculations can run, but their backups will fail until the folder returns."
 }
 $liveDatabase = & $python -m app.deploy_check local-db
 if ($LASTEXITCODE -ne 0) { Write-Error 'The configured database is not a safe local SQLite file. Review DATABASE_URL in .env.'; exit 1 }
