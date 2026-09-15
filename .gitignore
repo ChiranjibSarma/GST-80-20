@@ -5,6 +5,7 @@ wheelhouse/
 __pycache__/
 *.pyc
 .venv/
+.venv-previous-*/
 .deps/
 .tmp/
 # Client-provided source files and calculated workbooks are local-only.

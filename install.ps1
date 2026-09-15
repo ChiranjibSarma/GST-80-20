@@ -63,18 +63,18 @@ Write-Host "Installing into $AppDir" -ForegroundColor DarkGray
 # ---------------------------------------------------------------- python ---
 Step "Checking Python"
 $py = $null
-foreach ($cand in @('py -3.13', 'py -3.12', 'py -3.11', 'py -3', 'python', 'python3')) {
+foreach ($cand in @('py -3.12', 'py -3.13', 'py -3.11', 'py -3', 'python', 'python3')) {
     $exe, $arg = $cand -split ' ', 2
     if (-not (Get-Command $exe -ErrorAction SilentlyContinue)) { continue }
     try {
-        $check = if ($arg) { & $exe $arg -c 'import sys;print(sys.version_info>=(3,11))' 2>$null }
-                 else      { & $exe    -c 'import sys;print(sys.version_info>=(3,11))' 2>$null }
+        $check = if ($arg) { & $exe $arg -c 'import sys;print((3,11)<=sys.version_info<(3,14))' 2>$null }
+                 else      { & $exe    -c 'import sys;print((3,11)<=sys.version_info<(3,14))' 2>$null }
         if ($check -eq 'True') { $py = @($exe, $arg); break }
     } catch { }
 }
 if (-not $py) {
     Fail @"
-Python 3.11 or newer is required and was not found.
+Supported Python 3.11-3.13 is required and was not found. Python 3.12 is recommended.
 
     Install it from https://www.python.org/downloads/windows/
     Tick "Add python.exe to PATH" during setup, then run this script again.
@@ -87,6 +87,17 @@ Info "Using $pyVer"
 # ------------------------------------------------------------ virtualenv ---
 Step "Setting up the Python environment"
 $venvPy = Join-Path $AppDir '.venv\Scripts\python.exe'
+$venvDir = Join-Path $AppDir '.venv'
+if (Test-Path -LiteralPath $venvDir) {
+    $venvSupported = $false
+    try { $venvSupported = ((& $venvPy -c 'import sys;print((3,11)<=sys.version_info<(3,14))' 2>$null) -eq 'True') }
+    catch { }
+    if (-not $venvSupported) {
+        $archivedVenv = Join-Path $AppDir ('.venv-previous-' + [guid]::NewGuid().ToString('N'))
+        Move-Item -LiteralPath $venvDir -Destination $archivedVenv
+        Info "Archived unsupported/broken Python environment at $archivedVenv; database and .env are unchanged."
+    }
+}
 if (-not (Test-Path $venvPy)) {
     if ($pyArg) { & $pyExe $pyArg -m venv (Join-Path $AppDir '.venv') }
     else        { & $pyExe        -m venv (Join-Path $AppDir '.venv') }
@@ -277,13 +288,16 @@ Push-Location $AppDir
 $varDir = Join-Path $AppDir 'var'
 New-Item -ItemType Directory -Force -Path $varDir | Out-Null
 $log = Join-Path $varDir 'install-first-run.log'
-& $venvPy -c "from app.main import startup; startup()" *> $log
-$rc = $LASTEXITCODE
-Pop-Location
+try {
+    $firstRun = Start-Process -FilePath $venvPy -ArgumentList '-c "from app.main import startup; startup()"' `
+        -WorkingDirectory $AppDir -WindowStyle Hidden -Wait -PassThru `
+        -RedirectStandardOutput $log -RedirectStandardError "$log.err"
+    $rc = $firstRun.ExitCode
+} finally { Pop-Location }
 if ($rc -ne 0) {
     Write-Host ""
-    Get-Content $log -Tail 15 | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
-    Fail "the database could not be prepared. The output above says why.`n    The full log is at $log"
+    Get-Content $log, "$log.err" -Tail 30 -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
+    Fail "the database could not be prepared. Review $log and $log.err for the full Python error."
 }
 Select-String -Path $log -Pattern 'Email:|Password:|Database:' |
     ForEach-Object { Info ($_.Line.Trim()) }

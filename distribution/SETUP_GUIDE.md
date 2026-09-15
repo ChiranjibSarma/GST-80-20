@@ -15,7 +15,7 @@ known. Never request or accept the issuer's signing key or licence-generator too
 ## 2. Requirements
 
 - Windows with PowerShell 5.1 or newer.
-- Python 3.11 or newer. The installer attempts a per-user Python 3.12 installation
+- Python 3.11-3.13 (3.12 recommended; 3.14 is not validated for this package). The installer attempts a per-user Python 3.12 installation
   through Windows Package Manager (`winget`) if Python is missing. If company
   policy blocks this, ask IT to install Python and select **Add Python to PATH**.
 - Internet during installation for Python/dependencies, or a compatible offline
@@ -126,6 +126,15 @@ synchronization, and backups are not live shared databases.
 
 ## 8. Common problems
 
+### Applying an updated source ZIP to an existing installation
+
+Stop the portal, preserve copies of `var` and `.env`, and extract the new clean
+client ZIP into a temporary folder. Copy the **contents** of its `GST-80-20`
+folder into `%LOCALAPPDATA%\GST-80-20`, replacing source files. The clean ZIP
+contains no `.env`, `.venv` or `var` data, so these are not replaced. Run the
+installed `deploy.bat` afterwards. The ZIP bootstrap reuses an existing
+installation; rerunning it alone does not update the source files.
+
 | Message/problem | Action |
 | --- | --- |
 | Python/winget unavailable | Ask IT to install Python 3.11+ with PATH enabled, then rerun the BAT. |
@@ -136,6 +145,7 @@ synchronization, and backups are not live shared databases.
 | Another launcher is already running | Use its existing browser window, or stop it before launching/recovering again. |
 | Licence invalid/belongs to another installation | Send the displayed ID to the issuer and request the matching signed JSON. |
 | Application read-only | Check **Administration → Licence** for missing, invalid, expired or clock-related status. |
+| Database/admin preparation fails or stdout log is empty | Review both `var/install-first-run.log` and `var/install-first-run.log.err`. The `.err` file contains the Python traceback. Unsupported/broken `.venv` folders are archived and rebuilt with supported Python; data/configuration are retained. |
 | Login fails after recovery | Use the original credentials from the recovered installation; contact its administrator. |
 | Backup folder unavailable | Reconnect the configured Drive mirror and resolve the warning. Saved calculations remain local. |
 

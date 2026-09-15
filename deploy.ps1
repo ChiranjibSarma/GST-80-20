@@ -32,13 +32,14 @@ if (-not $ownsLaunchMutex) {
 }
 
 function Test-PythonAvailable {
-    foreach ($command in @('py', 'python', 'python3')) {
+    foreach ($candidate in @('py -3.12', 'py -3.13', 'py -3.11', 'py -3', 'python', 'python3')) {
+        $command, $argument = $candidate -split ' ', 2
         if (-not (Get-Command $command -ErrorAction SilentlyContinue)) { continue }
         try {
-            $check = if ($command -eq 'py') {
-                & $command -3 -c 'import sys;print(sys.version_info >= (3, 11))' 2>$null
+            $check = if ($argument) {
+                & $command $argument -c 'import sys;print((3,11)<=sys.version_info<(3,14))' 2>$null
             } else {
-                & $command -c 'import sys;print(sys.version_info >= (3, 11))' 2>$null
+                & $command -c 'import sys;print((3,11)<=sys.version_info<(3,14))' 2>$null
             }
             if ($check -eq 'True') { return $true }
         } catch { }
@@ -79,10 +80,10 @@ $serverExit = 1
 if (-not (Test-PythonAvailable)) {
     $winget = Get-Command winget.exe -ErrorAction SilentlyContinue
     if (-not $winget) {
-        Write-Error "Python 3.11+ is missing and winget is unavailable. Install Python from https://www.python.org/downloads/windows/ (select Add Python to PATH), then rerun deploy.bat."
+        Write-Error "Supported Python (3.11-3.13) is missing and winget is unavailable. Install Python 3.12 with Add Python to PATH, then rerun deploy.bat. Python 3.14 is not validated for this package."
         exit 1
     }
-    Write-Host 'Python 3.11+ was not found. Installing Python 3.12 for this user with Windows Package Manager...'
+    Write-Host 'Supported Python (3.11-3.13) was not found. Installing Python 3.12 for this user with Windows Package Manager...'
     & $winget.Source install --id Python.Python.3.12 --exact --source winget --scope user --silent --accept-package-agreements --accept-source-agreements
     if ($LASTEXITCODE -ne 0) {
         Write-Error "Windows Package Manager could not install Python. Install it from https://www.python.org/downloads/windows/ (select Add Python to PATH), then rerun deploy.bat."
