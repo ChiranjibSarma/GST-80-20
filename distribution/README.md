@@ -1,5 +1,8 @@
 # Client installation package
 
+Follow [SETUP_GUIDE.md](SETUP_GUIDE.md) for installation, activation, login,
+backups, recovery and troubleshooting.
+
 Give the client `install_from_zip.bat` and `GST-80-20-client.zip` from this folder.
 The ZIP is a source snapshot, excludes this distribution folder (no nested
 packages), and contains no issuer utility, private key, licence or client data.
