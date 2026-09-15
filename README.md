@@ -110,6 +110,11 @@ Upgrading does not reset an existing user's password. Each calculation save
 creates a separate database backup; monitor disk/Drive space and archive old
 snapshots according to your retention policy.
 
+Client handoff files are in `distribution/`. On first use, the launcher checks
+both local and configured backup folders and offers explicit, validated recovery
+only if the current database has no calculations. Restored accounts retain
+their original passwords. See `DEPLOYMENT.md` for recovery safeguards.
+
 Only source code and the original `reference/80-20.py` are intended for GitHub.
 Client Excel exports and the approved July output are ignored. The workbook
 parity and HTTP tests require those private files to be placed back under

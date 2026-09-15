@@ -25,6 +25,22 @@ If an earlier release created `gst8020-current.sqlite3` or
 or replace the local database. Keep them until you have verified which local
 database contains the records you need.
 
+## First-use recovery
+
+Before launching, the desktop installer checks local `var/backups` and the
+configured backup directory (including a Drive mirror). If calculations already
+exist, it retains the current database. Otherwise it lists compatible backups
+and asks for a number and explicit `RESTORE` confirmation. Enter skips recovery.
+Integrity, schema and foreign-key checks reject invalid backups. Original
+accounts/passwords and frozen runs are restored; installation ID, licence file
+and current activation dates are retained. A pre-restore database is saved in
+`var/recovery`. Close all other application processes before restoring. This is
+manual recovery, not automatic synchronization. Copy old local backups into
+`var/backups` if recovering after a reinstall.
+
+The client handoff files are published in `distribution/` in GitHub. Its ZIP
+excludes the distribution folder itself and all issuer/client runtime material.
+
 ## Offline 14-day licences
 
 Each PC has a separate installation ID (`var/installation-id`, also printed by

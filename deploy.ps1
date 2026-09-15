@@ -16,6 +16,21 @@ $installer = Join-Path $appDir 'install.ps1'
 $server = Join-Path $appDir '.venv\Scripts\uvicorn.exe'
 Set-Location $appDir
 
+# Keep one launcher/recovery session per checkout. This lock is released by
+# Windows when the console process exits, including interrupted launches.
+$hashProvider = [System.Security.Cryptography.SHA256]::Create()
+try {
+    $pathHash = [BitConverter]::ToString($hashProvider.ComputeHash(
+        [System.Text.Encoding]::UTF8.GetBytes($appDir.ToLowerInvariant()))).Replace('-', '')
+} finally { $hashProvider.Dispose() }
+$launchMutex = [System.Threading.Mutex]::new($false, "Local\GST8020-$pathHash")
+try { $ownsLaunchMutex = $launchMutex.WaitOne(0) }
+catch [System.Threading.AbandonedMutexException] { $ownsLaunchMutex = $true }
+if (-not $ownsLaunchMutex) {
+    Write-Error 'This installation is already being launched or is running. Use its existing browser window; do not run another launcher during recovery.'
+    exit 1
+}
+
 function Test-PythonAvailable {
     foreach ($command in @('py', 'python', 'python3')) {
         if (-not (Get-Command $command -ErrorAction SilentlyContinue)) { continue }
@@ -139,6 +154,9 @@ Write-Host "Live database: $liveDatabase"
 if ([string]$liveDatabase -match '(?i)[\\/](?:OneDrive[^\\/]*|Google Drive|Dropbox)[\\/]') {
     Write-Warning 'The live database is inside a synced folder. For client deployment, copy the app to a non-synced local folder before use; configure Drive only as the backup destination.'
 }
+
+& $python -m app.recovery
+if ($LASTEXITCODE -ne 0) { Write-Error 'Database recovery did not complete. No portal was started.'; exit 1 }
 
 if ($PrepareOnly) {
     $installationId = (Get-Content -LiteralPath (Join-Path $appDir 'var\installation-id') -Raw).Trim()
