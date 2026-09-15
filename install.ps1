@@ -250,6 +250,28 @@ if (Test-Path $envFile) {
 }
 
 # ------------------------------------------------------------ first run ----
+Push-Location $AppDir
+try {
+    $databaseKind = & $venvPy -m app.deploy_check database-kind
+    if ($LASTEXITCODE -ne 0) { Fail 'could not determine the configured database type' }
+    if ($databaseKind -eq 'postgresql') {
+        Step 'Installing optional PostgreSQL driver'
+        $previousErrorAction = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        try {
+            $driverArgs = @('-m', 'pip', 'install', '--disable-pip-version-check', '--quiet', '--only-binary=psycopg2-binary', '-r', (Join-Path $AppDir 'requirements-postgres.txt'))
+            if ((Test-Path $wheelhouse) -and (Get-ChildItem $wheelhouse -ErrorAction SilentlyContinue)) {
+                $driverArgs += @('--no-index', '--find-links', $wheelhouse)
+            }
+            & $venvPy @driverArgs
+            $driverExit = $LASTEXITCODE
+        } finally { $ErrorActionPreference = $previousErrorAction }
+        if ($driverExit -ne 0) { Fail 'No compatible PostgreSQL binary driver could be installed. Check Python/platform and package access, or use local SQLite. Offline PostgreSQL bundles must include requirements-postgres.txt dependencies.' }
+    } else {
+        Info 'SQLite: PostgreSQL driver installation skipped.'
+    }
+} finally { Pop-Location }
+
 Step "Preparing the database and the first administrator"
 Push-Location $AppDir
 $varDir = Join-Path $AppDir 'var'

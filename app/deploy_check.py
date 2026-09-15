@@ -8,9 +8,13 @@ from .config import BACKUP_DIR, BACKUP_DIR_EXPLICIT, DATABASE_URL
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("backup-dir", "local-db", "license-file"))
+    parser.add_argument("action", choices=("backup-dir", "local-db", "license-file", "database-kind"))
     parser.add_argument("value", nargs="?")
     args = parser.parse_args(argv)
+
+    if args.action == "database-kind":
+        print("postgresql" if DATABASE_URL.startswith("postgresql") else "sqlite" if DATABASE_URL.startswith("sqlite") else "unsupported")
+        return 0
 
     if args.action == "backup-dir":
         print(BACKUP_DIR if BACKUP_DIR_EXPLICIT else "")

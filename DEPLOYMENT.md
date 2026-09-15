@@ -2,6 +2,12 @@
 
 ## Windows PC: local SQLite database
 
+`requirements.txt` contains SQLite/common dependencies only. PostgreSQL server
+installations additionally use `requirements-postgres.txt`, and the installers
+request a binary PostgreSQL driver rather than attempting source compilation.
+For an offline PostgreSQL deployment, build the bundle with
+`./make-offline-bundle.sh --postgres`; the default bundle is for SQLite.
+
 Copy the app to a **non-synced local folder** on the client PC, then run
 `deploy.bat`. Its live database is `var/finops.db` on that same PC. Do not run
 the working copy from OneDrive, Google Drive, or Dropbox: `var/finops.db` would

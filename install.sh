@@ -240,6 +240,20 @@ else
 fi
 
 # ------------------------------------------------------ first start --------
+cd "$APP_DIR"
+DATABASE_KIND="$("$VENV_PY" -m app.deploy_check database-kind)"
+if [ "$DATABASE_KIND" = "postgresql" ]; then
+  step "Installing optional PostgreSQL driver"
+  DRIVER_ARGS=(--only-binary=psycopg2-binary -r "$APP_DIR/requirements-postgres.txt")
+  if [ -d "$APP_DIR/wheelhouse" ] && [ -n "$(ls -A "$APP_DIR/wheelhouse" 2>/dev/null)" ]; then
+    DRIVER_ARGS+=(--no-index --find-links "$APP_DIR/wheelhouse")
+  fi
+  "$VENV_PY" -m pip install --quiet "${DRIVER_ARGS[@]}" \
+    || fail "No compatible PostgreSQL binary driver is available. Check Python/platform and package access, or use SQLite."
+else
+  info "SQLite: PostgreSQL driver installation skipped."
+fi
+
 step "Preparing the database and the first administrator"
 cd "$APP_DIR"
 FIRST_RUN_LOG="$APP_DIR/var/install-first-run.log"

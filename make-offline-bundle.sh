@@ -12,6 +12,13 @@
 
 set -Eeuo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REQS="$DIR/requirements.txt"
+if [ "${1:-}" = "--postgres" ]; then
+  REQS="$DIR/requirements-postgres.txt"
+elif [ -n "${1:-}" ]; then
+  echo "Usage: ./make-offline-bundle.sh [--postgres]" >&2
+  exit 1
+fi
 
 PY=""
 for c in python3.13 python3.12 python3.11 python3; do
@@ -25,7 +32,7 @@ done
 echo "Building the offline bundle with $("$PY" --version 2>&1) on $(uname -s)/$(uname -m)"
 rm -rf "$DIR/wheelhouse"
 mkdir -p "$DIR/wheelhouse"
-"$PY" -m pip download --dest "$DIR/wheelhouse" -r "$DIR/requirements.txt"
+"$PY" -m pip download --dest "$DIR/wheelhouse" --only-binary=psycopg2-binary -r "$REQS"
 
 cat > "$DIR/wheelhouse/BUILT-ON.txt" <<TXT
 Built $(date '+%Y-%m-%d %H:%M')

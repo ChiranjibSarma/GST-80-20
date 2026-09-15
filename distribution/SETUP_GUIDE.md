@@ -130,6 +130,7 @@ synchronization, and backups are not live shared databases.
 | --- | --- |
 | Python/winget unavailable | Ask IT to install Python 3.11+ with PATH enabled, then rerun the BAT. |
 | Dependency installation failed | Check network/proxy policy or request a compatible offline bundle. |
+| `pg_config` / `psycopg2-binary` error using an older ZIP | Download the refreshed package. SQLite client installs no longer require the PostgreSQL driver. Preserve/rename the failed local installation before retrying with the new ZIP; never discard an installation containing data. |
 | ZIP incomplete or contains runtime/issuer files | Use the clean `GST-80-20-client.zip` from `distribution/`, not a ZIP of a working installation. |
 | Destination exists but is incomplete | Preserve/inspect the folder; ask support before renaming it. Do not delete databases to retry. |
 | Another launcher is already running | Use its existing browser window, or stop it before launching/recovering again. |
