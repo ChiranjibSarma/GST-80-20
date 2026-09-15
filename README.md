@@ -28,6 +28,7 @@ internet — so it runs on an isolated network.
 deploy.bat           one-click Windows setup and local launch (Python 3.11+ required)
 install_from_github.bat   clone a fresh local copy from GitHub, then run deploy.bat
 install_from_download.bat deploy from an already extracted repository ZIP
+install_from_zip.bat    select a repository ZIP and separately issued licence
 demo.bat / demo.sh   run it on a laptop for a demo — SQLite, no setup
 demo-inputs/         local-only sample Tally exports; never committed to Git
 seed_demo.py         pre-loads the sample month
@@ -78,7 +79,7 @@ This launcher binds only to the local PC. Each installation has an independent
 database; the app does not synchronize users' records across PCs.
 See `DEPLOYMENT.md` for backup and recovery steps.
 
-Two first-run wrappers are provided. Give `install_from_github.bat` to someone
+Three first-run wrappers are provided. Give `install_from_github.bat` to someone
 with access to the GitHub repository and internet. It installs Git if needed,
 prompts for GitHub sign-in when the repository is private, clones into the
 PC's `%LOCALAPPDATA%\GST-80-20` folder, and starts `deploy.bat`. Alternatively,
@@ -88,6 +89,15 @@ starting port, for example `install_from_download.bat 8081`. Neither wrapper
 updates or overwrites an existing database. The GitHub wrapper reuses an
 existing installation rather than pulling new code; upgrades need a separate,
 backed-up process.
+
+For a controlled client handoff, distribute `install_from_zip.bat` separately
+from the repository archive. It installs a selected repository ZIP into the
+local `%LOCALAPPDATA%\GST-80-20` folder, prepares the PC, displays its unique
+installation ID, and then asks for a separately supplied licence JSON. If the
+licence has not been issued yet, leave the prompt blank and rerun the same BAT
+after receiving it. The BAT validates the signature and installation binding
+before copying it into `var/license.json`. Licence-generation code and the
+private signing key are issuer-only and are not shipped in this repository.
 
 Each PC requires its own signed 14-day licence file, activated on first valid
 use. After expiry, existing results and exports stay readable but new changes

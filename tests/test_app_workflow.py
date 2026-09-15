@@ -5,11 +5,9 @@ import tempfile
 import io
 import re
 import html
-import base64
 import datetime as dt
 import json
 import sqlite3
-import uuid
 import openpyxl
 
 TEST_VAR = tempfile.mkdtemp(prefix="gst8020-test-")
@@ -19,8 +17,6 @@ os.environ["BOOTSTRAP_ADMIN_PASSWORD"] = "GoldenTestPassword1"
 
 from fastapi.testclient import TestClient
 from sqlalchemy import select, func
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from app.main import app
 from app import license as licensing
@@ -28,20 +24,16 @@ from app.db import SessionLocal
 from app.config import BACKUP_DIR
 from app.models import Run, RunRow, Rectification, AuditLog, Creditor, LicenseActivation
 
-# The HTTP test uses a throwaway signed licence; no issuer key is in the repo.
-test_key = Ed25519PrivateKey.generate()
+# Pre-signed test fixtures use a different public key from the client package.
+# No private key or signing implementation is distributed with the tests.
+FIXTURES = Path(__file__).resolve().parent / "fixtures"
 licensing.PUBLIC_KEY_PATH = Path(TEST_VAR) / "public.pem"
-licensing.PUBLIC_KEY_PATH.write_bytes(test_key.public_key().public_bytes(
-    serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo))
-test_installation_id = str(uuid.uuid4())
+licensing.PUBLIC_KEY_PATH.write_bytes((FIXTURES / "license_public_key.pem").read_bytes())
+test_document = json.loads((FIXTURES / "license_valid.json").read_text(encoding="utf-8"))
+test_payload = test_document["payload"]
+test_installation_id = test_payload["installation_id"]
 licensing.INSTALLATION_ID_FILE.write_text(test_installation_id, encoding="ascii")
-test_payload = {"schema": 1, "license_id": str(uuid.uuid4()),
-                "installation_id": test_installation_id, "customer": "Test Client",
-                "duration_days": 14, "issued_at": dt.datetime.now(dt.timezone.utc).isoformat()}
-licensing.LICENSE_FILE.write_text(json.dumps({
-    "payload": test_payload,
-    "signature": base64.b64encode(test_key.sign(licensing.canonical(test_payload))).decode("ascii"),
-}), encoding="utf-8")
+licensing.LICENSE_FILE.write_text(json.dumps(test_document), encoding="utf-8")
 
 ROOT = Path(__file__).resolve().parents[1]
 REF = ROOT / "reference"

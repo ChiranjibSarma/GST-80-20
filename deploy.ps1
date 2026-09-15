@@ -6,7 +6,8 @@
 [CmdletBinding()]
 param(
     [ValidateRange(1, 65535)]
-    [int]$Port = 8080
+    [int]$Port = 8080,
+    [switch]$PrepareOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -137,6 +138,14 @@ if ($LASTEXITCODE -ne 0) { Write-Error 'The configured database is not a safe lo
 Write-Host "Live database: $liveDatabase"
 if ([string]$liveDatabase -match '(?i)[\\/](?:OneDrive[^\\/]*|Google Drive|Dropbox)[\\/]') {
     Write-Warning 'The live database is inside a synced folder. For client deployment, copy the app to a non-synced local folder before use; configure Drive only as the backup destination.'
+}
+
+if ($PrepareOnly) {
+    $installationId = (Get-Content -LiteralPath (Join-Path $appDir 'var\installation-id') -Raw).Trim()
+    Write-Host ''
+    Write-Host 'Installation prepared. It has not been started.' -ForegroundColor Green
+    Write-Host "Installation ID: $installationId" -ForegroundColor White
+    exit 0
 }
 
 Write-Host ""

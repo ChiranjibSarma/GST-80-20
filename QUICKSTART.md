@@ -12,6 +12,11 @@ For a Windows PC, choose one of these first-time installers:
   it to a non-synced local folder, and double-click this BAT within that folder.
   This route needs no Git on the client PC. The extracted folder must include
   `deploy.bat`, `deploy.ps1`, `app/`, and `requirements.txt`.
+- `install_from_zip.bat` — recommended for a controlled client handoff. Give
+  this BAT to the client separately; it prompts for the complete repository
+  ZIP, prepares a local copy, displays the installation ID, validates the
+  separately issued licence JSON, and starts the portal. The first run can be
+  stopped after displaying the ID and resumed after the licence is issued.
 
 Both wrappers call `deploy.bat`. It installs the Python
 packages, creates a local database, starts the portal and opens the browser.

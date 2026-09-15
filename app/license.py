@@ -6,6 +6,7 @@ this cannot be tamper-proof; it is a transparent commercial licence control.
 import base64
 import datetime as dt
 import json
+from pathlib import Path
 import uuid
 from dataclasses import dataclass
 
@@ -49,6 +50,24 @@ def installation_id():
     return str(uuid.UUID(value))
 
 
+def verify_license_file(path, expected_installation_id):
+    """Verify a prospective licence without starting its activation period."""
+    document = json.loads(Path(path).read_text(encoding="utf-8"))
+    payload = document["payload"]
+    signature = base64.b64decode(document["signature"], validate=True)
+    public_key = serialization.load_pem_public_key(PUBLIC_KEY_PATH.read_bytes())
+    public_key.verify(signature, canonical(payload))
+    if payload.get("schema") != 1 or payload.get("duration_days") != TERM_DAYS:
+        raise ValueError("Licence terms are not supported")
+    if payload.get("installation_id") != expected_installation_id:
+        raise ValueError("Licence belongs to another installation")
+    license_id = str(uuid.UUID(payload["license_id"]))
+    customer = str(payload["customer"]).strip()
+    if not customer or len(customer) > 160:
+        raise ValueError("Missing customer")
+    return payload, license_id, customer
+
+
 @dataclass(frozen=True)
 class LicenseStatus:
     code: str
@@ -74,18 +93,7 @@ def evaluate(db, now=None):
     if not LICENSE_FILE.is_file():
         return LicenseStatus("missing", "No licence installed. The portal is read-only.", install_id)
     try:
-        document = json.loads(LICENSE_FILE.read_text(encoding="utf-8"))
-        payload = document["payload"]
-        signature = base64.b64decode(document["signature"], validate=True)
-        public_key = serialization.load_pem_public_key(PUBLIC_KEY_PATH.read_bytes())
-        public_key.verify(signature, canonical(payload))
-        if (payload.get("schema") != 1 or payload.get("duration_days") != TERM_DAYS
-                or payload.get("installation_id") != install_id):
-            raise ValueError("Licence terms or installation ID do not match")
-        license_id = str(uuid.UUID(payload["license_id"]))
-        customer = str(payload["customer"]).strip()
-        if not customer or len(customer) > 160:
-            raise ValueError("Missing customer")
+        payload, license_id, customer = verify_license_file(LICENSE_FILE, install_id)
     except (OSError, ValueError, KeyError, TypeError, InvalidSignature):
         return LicenseStatus("invalid", "Licence is invalid or belongs to another installation.", install_id)
 

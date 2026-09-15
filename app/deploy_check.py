@@ -8,11 +8,25 @@ from .config import BACKUP_DIR, BACKUP_DIR_EXPLICIT, DATABASE_URL
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("backup-dir", "local-db"))
+    parser.add_argument("action", choices=("backup-dir", "local-db", "license-file"))
+    parser.add_argument("value", nargs="?")
     args = parser.parse_args(argv)
 
     if args.action == "backup-dir":
         print(BACKUP_DIR if BACKUP_DIR_EXPLICIT else "")
+        return 0
+
+    if args.action == "license-file":
+        if not args.value:
+            print("license-file requires the path to a licence JSON file", file=sys.stderr)
+            return 2
+        try:
+            from .license import installation_id, verify_license_file
+            _, _, customer = verify_license_file(Path(args.value), installation_id())
+        except Exception:
+            print("Licence signature, terms, or installation ID are invalid", file=sys.stderr)
+            return 1
+        print(customer)
         return 0
 
     if not DATABASE_URL.startswith("sqlite"):

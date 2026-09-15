@@ -1,34 +1,26 @@
 """Offline licence: signed terms, first activation and read-only expiry."""
-import base64
 import datetime as dt
 import json
 from pathlib import Path
 import tempfile
-import uuid
-
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from app import license as licensing
 from app.models import LicenseActivation
 
+FIXTURES = Path(__file__).resolve().parent / "fixtures"
+
 
 def main():
     with tempfile.TemporaryDirectory(prefix="gst8020-license-") as root:
         root = Path(root)
-        key = Ed25519PrivateKey.generate()
         public = root / "public.pem"
-        public.write_bytes(key.public_key().public_bytes(
-            serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo))
-        install_id = str(uuid.uuid4())
+        public.write_bytes((FIXTURES / "license_public_key.pem").read_bytes())
+        document = json.loads((FIXTURES / "license_valid.json").read_text(encoding="utf-8"))
+        payload = document["payload"]
+        install_id = payload["installation_id"]
         (root / "installation-id").write_text(install_id, encoding="ascii")
-        payload = {"schema": 1, "license_id": str(uuid.uuid4()),
-                   "installation_id": install_id, "customer": "Test Client",
-                   "duration_days": 14, "issued_at": "2026-09-01T00:00:00+00:00"}
-        document = {"payload": payload,
-                    "signature": base64.b64encode(key.sign(licensing.canonical(payload))).decode("ascii")}
         (root / "license.json").write_text(json.dumps(document), encoding="utf-8")
 
         old = (licensing.PUBLIC_KEY_PATH, licensing.LICENSE_FILE,
@@ -41,6 +33,11 @@ def main():
         start = dt.datetime(2026, 9, 14, 10, 0, tzinfo=dt.timezone.utc)
         try:
             with Session(engine) as db:
+                checked, checked_id, checked_customer = licensing.verify_license_file(
+                    licensing.LICENSE_FILE, install_id)
+                assert checked == payload and checked_id == payload["license_id"]
+                assert checked_customer == "Automated Test Client"
+                assert db.get(LicenseActivation, payload["license_id"]) is None
                 first = licensing.evaluate(db, start)
                 assert first.code == "active" and first.activated_at == start
                 assert first.expires_at == start + dt.timedelta(days=14)

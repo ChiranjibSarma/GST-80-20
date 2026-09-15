@@ -1,0 +1,11 @@
+{
+  "payload": {
+    "schema": 1,
+    "license_id": "a7c04b2e-5099-4100-8395-54aa68aa839c",
+    "installation_id": "22222222-2222-4222-8222-222222222222",
+    "customer": "Automated Test Client",
+    "duration_days": 14,
+    "issued_at": "2026-09-15T03:51:56.635889+00:00"
+  },
+  "signature": "KsHEqQwaFgin67JQkPhEcwz0OyvUi39Pfhix+0vLJvyxOEEd76Rep11WeFPk/0arprS9ySYKBd2acQI5uWKmDw=="
+}

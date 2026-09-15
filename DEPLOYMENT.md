@@ -37,18 +37,22 @@ rejects new calculations and other business writes. An invalid/missing licence
 also leaves the portal read-only. This is an offline commercial control, not
 tamper-proof protection against someone with source-code and clock access.
 
-The issuer keeps the Ed25519 private key **off client PCs and out of Git**.
-Issuer-only commands (run from a protected machine, after installing
-`requirements.txt`):
-
-```powershell
-python issue_license.py keygen --private-key C:\issuer-only\gst8020-private.pem --public-key app\license_public_key.pem
-python issue_license.py issue --private-key C:\issuer-only\gst8020-private.pem --installation-id <CLIENT-PC-ID> --customer "Client name" --output C:\issuer-only\license.json
-```
-
-Only `app/license_public_key.pem` ships with the client package. Never run
-`keygen` again after distributing the public key: it would invalidate existing
+The issuer keeps the Ed25519 private key and the licence-generation utility
+**off client PCs, outside the client ZIP, and out of this Git repository**.
+Only `app/license_public_key.pem` ships with the client package. A public key
+can validate an issuer signature but cannot generate a valid licence. Never
+replace the distributed public key: doing so would invalidate existing
 licences. Protect both the issuer private key and delivered licence files.
+The verification code must remain in the application. Removing issuer code
+does not make a source-delivered application tamper-proof: a client with source
+and filesystem access can still alter enforcement. Signature security depends
+on keeping the private key secret, not on hiding the signing algorithm.
+
+For a fresh PC, distribute `install_from_zip.bat` separately. It asks for the
+repository ZIP, prepares the application under `%LOCALAPPDATA%\GST-80-20`, and
+prints the new installation ID. Generate the matching licence on the protected
+issuer machine, give only the JSON licence to the client, and rerun the same
+BAT. It validates the signature and installation ID before installing the file.
 
 ---
 
