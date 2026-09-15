@@ -144,6 +144,9 @@ label.field > span { display: block; font: 500 12px/1 var(--sans); color: var(--
                      margin-bottom: 6px; }
 label.field .help { font: 400 12px/1.5 var(--sans); color: var(--ink-3); margin-top: 5px;
                     display: block; }
+.upload-field { margin-bottom: 16px; }
+.upload-field label.field { margin-bottom: 4px; }
+.template-link { display: inline-block; font: 500 12px/1.4 var(--sans); }
 label.inline { display: flex; gap: 8px; align-items: center; font-size: 13px;
                margin-bottom: 8px; cursor: pointer; }
 label.inline input { width: auto; accent-color: var(--accent); }

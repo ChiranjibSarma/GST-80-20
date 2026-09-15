@@ -2,7 +2,18 @@
 
 Copy this folder to the server, then run one command.
 
-For a Windows PC, double-click `deploy.bat` instead. It installs the Python
+For a Windows PC, choose one of these first-time installers:
+
+- `install_from_github.bat` — copy just this BAT to the PC and double-click it.
+  It clones the repository into `%LOCALAPPDATA%\GST-80-20` (GitHub sign-in may
+  be required for a private repository), then runs `deploy.bat`. Internet and
+  Git are required; it attempts to install Git through `winget` if missing.
+- `install_from_download.bat` — download the complete repository ZIP, extract
+  it to a non-synced local folder, and double-click this BAT within that folder.
+  This route needs no Git on the client PC. The extracted folder must include
+  `deploy.bat`, `deploy.ps1`, `app/`, and `requirements.txt`.
+
+Both wrappers call `deploy.bat`. It installs the Python
 packages, creates a local database, starts the portal and opens the browser.
 If port 8080 is occupied, it automatically selects the next available port.
 Each PC keeps its own independent SQLite database. You can optionally choose
@@ -41,6 +52,8 @@ Then:
 3. Change that password under **Administration → Users** — the banner on the home page says so
    until you do, and doing it deletes the copy the installer left on the server.
 4. **GST 80:20 → New calculation**, and upload the month's three Tally exports.
+   Download the corresponding input templates from that page first if the
+   export format is uncertain.
 
 ---
 

@@ -12,6 +12,7 @@ demo-inputs/
 reference/*
 !reference/80-20.py
 *.xlsx
+!app/static/input-templates/*.xlsx
 *.xls
 *.csv
 *.eml

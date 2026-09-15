@@ -26,6 +26,8 @@ internet — so it runs on an isolated network.
 
 ```
 deploy.bat           one-click Windows setup and local launch (Python 3.11+ required)
+install_from_github.bat   clone a fresh local copy from GitHub, then run deploy.bat
+install_from_download.bat deploy from an already extracted repository ZIP
 demo.bat / demo.sh   run it on a laptop for a demo — SQLite, no setup
 demo-inputs/         local-only sample Tally exports; never committed to Git
 seed_demo.py         pre-loads the sample month
@@ -76,6 +78,17 @@ This launcher binds only to the local PC. Each installation has an independent
 database; the app does not synchronize users' records across PCs.
 See `DEPLOYMENT.md` for backup and recovery steps.
 
+Two first-run wrappers are provided. Give `install_from_github.bat` to someone
+with access to the GitHub repository and internet. It installs Git if needed,
+prompts for GitHub sign-in when the repository is private, clones into the
+PC's `%LOCALAPPDATA%\GST-80-20` folder, and starts `deploy.bat`. Alternatively,
+download the complete repository ZIP, extract it to a non-synced local folder,
+and run `install_from_download.bat` inside that folder. Both accept an optional
+starting port, for example `install_from_download.bat 8081`. Neither wrapper
+updates or overwrites an existing database. The GitHub wrapper reuses an
+existing installation rather than pulling new code; upgrades need a separate,
+backed-up process.
+
 Each PC requires its own signed 14-day licence file, activated on first valid
 use. After expiry, existing results and exports stay readable but new changes
 are blocked. The private signing key must remain with the issuer, not on client
@@ -106,7 +119,10 @@ still movable.
 
 ### Every month
 
-1. **New calculation** — upload the Day Book, Search Voucher and Creditors exports.
+1. **New calculation** — download the three input templates on that page, then
+   upload matching Day Book, Search Voucher and Creditors exports. The first
+   worksheet contains the exact expected Tally headers; the second explains
+   the fields. Uploading a blank template is rejected.
 2. The module resolves the party behind every cost line, applies the rules, and stores
    the result as a permanent snapshot.
 3. Work the **review queue** for items identified by the golden script.

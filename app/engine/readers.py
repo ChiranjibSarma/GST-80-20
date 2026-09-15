@@ -59,16 +59,30 @@ def read_sheet(path_or_file, must_have, label):
         raise IngestError(f"{label}: could not read an .xlsx workbook ({type(exc).__name__}).") from exc
     ws = wb.worksheets[0]
     header_row, header = None, None
+    candidates = []
     for i, row in enumerate(ws.iter_rows(min_row=1, max_row=60, values_only=True), 1):
         present = {key(c) for c in row if c is not None}
+        if present:
+            candidates.append(present)
         if all(m in present for m in must_have):
             header_row, header = i, [norm(c) for c in row]
             break
     if header_row is None:
         wb.close()
+        for other_label, other_cols in (
+            ("Day Book Register", DAYBOOK_COLS),
+            ("Search Voucher", VOUCHER_COLS),
+            ("Creditors Details", CREDITOR_COLS),
+        ):
+            if other_label != label and any(all(m in row for m in other_cols) for row in candidates):
+                raise IngestError(
+                    f"{label}: this appears to be a {other_label} file. "
+                    f"Upload it in the {other_label} field instead.")
+        closest = max(candidates, key=lambda row: len(row.intersection(must_have)), default=set())
+        missing = [name for name in must_have if name not in closest]
         raise IngestError(
-            f"{label}: could not find the column headings. This file needs the columns "
-            f"{', '.join(must_have)} — check that you exported the right report from Tally.")
+            f"{label}: could not find the required headings. Missing columns: "
+            f"{', '.join(missing)}. Check the downloadable template and the Tally export.")
     # Tally may vary heading case/spacing.  Normalize to the exact field names
     # consumed by the approved Python script, rather than accepting a heading
     # and then silently returning an empty field under another spelling.

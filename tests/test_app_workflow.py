@@ -68,6 +68,13 @@ def main():
                                                 "next": "/", "csrf_token_value": csrf},
                                follow_redirects=False)
         assert response.status_code == 303
+        form = client.get("/gst8020/new")
+        assert form.status_code == 200
+        for filename in ("Day_Book_Register_Template.xlsx", "Search_Voucher_Template.xlsx",
+                         "Creditors_Details_Template.xlsx"):
+            assert filename in form.text
+            template = client.get(f"/static/input-templates/{filename}")
+            assert template.status_code == 200 and template.content.startswith(b"PK")
         response = client.post("/gst8020/new", data={"label": "July 2026 golden run",
                                                     "csrf_token_value": csrf},
                                files=upload_payload(), follow_redirects=False)
