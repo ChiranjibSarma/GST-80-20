@@ -1,3 +1,3 @@
-Client ZIP source commit: fcc403f
+Client ZIP source commit: 6be1891
 Repository: https://github.com/ChiranjibSarma/GST-80-20
 The ZIP excludes distribution/ and all ignored issuer/runtime/client data.
