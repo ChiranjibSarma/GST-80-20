@@ -63,12 +63,23 @@ Write-Host "Installing into $AppDir" -ForegroundColor DarkGray
 # ---------------------------------------------------------------- python ---
 Step "Checking Python"
 $py = $null
-foreach ($cand in @('py -3.12', 'py -3.13', 'py -3.11', 'py -3', 'python', 'python3')) {
+if ($env:GST8020_PYTHON) {
+    $requestedPython = $env:GST8020_PYTHON.Trim('"')
+    if (-not (Test-Path -LiteralPath $requestedPython -PathType Leaf)) {
+        Fail "GST8020_PYTHON points to a missing file: $requestedPython"
+    }
+    try {
+        $check = & $requestedPython -c 'import sys;print((3,11)<=sys.version_info<(3,14) and sys.maxsize>2**32)' 2>$null
+        if ($check -eq 'True') { $py = @($requestedPython, '') }
+    } catch { }
+    if (-not $py) { Fail 'GST8020_PYTHON must point to working 64-bit Python 3.11-3.13.' }
+}
+foreach ($cand in $(if ($py) { @() } else { @('py -3.12', 'py -3.13', 'py -3.11', 'py -3', 'python', 'python3') })) {
     $exe, $arg = $cand -split ' ', 2
     if (-not (Get-Command $exe -ErrorAction SilentlyContinue)) { continue }
     try {
-        $check = if ($arg) { & $exe $arg -c 'import sys;print((3,11)<=sys.version_info<(3,14))' 2>$null }
-                 else      { & $exe    -c 'import sys;print((3,11)<=sys.version_info<(3,14))' 2>$null }
+        $check = if ($arg) { & $exe $arg -c 'import sys;print((3,11)<=sys.version_info<(3,14) and sys.maxsize>2**32)' 2>$null }
+                 else      { & $exe    -c 'import sys;print((3,11)<=sys.version_info<(3,14) and sys.maxsize>2**32)' 2>$null }
         if ($check -eq 'True') { $py = @($exe, $arg); break }
     } catch { }
 }
@@ -90,7 +101,7 @@ $venvPy = Join-Path $AppDir '.venv\Scripts\python.exe'
 $venvDir = Join-Path $AppDir '.venv'
 if (Test-Path -LiteralPath $venvDir) {
     $venvSupported = $false
-    try { $venvSupported = ((& $venvPy -c 'import sys;print((3,11)<=sys.version_info<(3,14))' 2>$null) -eq 'True') }
+    try { $venvSupported = ((& $venvPy -c 'import sys;print((3,11)<=sys.version_info<(3,14) and sys.maxsize>2**32)' 2>$null) -eq 'True') }
     catch { }
     if (-not $venvSupported) {
         $archivedVenv = Join-Path $AppDir ('.venv-previous-' + [guid]::NewGuid().ToString('N'))

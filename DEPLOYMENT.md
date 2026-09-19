@@ -9,7 +9,12 @@ For an offline PostgreSQL deployment, build the bundle with
 `./make-offline-bundle.sh --postgres`; the default bundle is for SQLite.
 
 Copy the app to a **non-synced local folder** on the client PC, then run
-`deploy.bat`. Its live database is `var/finops.db` on that same PC. Do not run
+`deploy.bat`. This BAT is source-only and does not invoke the separate
+`distribution/windows/GST-80-20-Setup.exe`. It requires compatible Python
+3.11-3.13 (64-bit) and internet or a compatible `wheelhouse/`. It always
+deploys local SQLite; PostgreSQL settings in `.env` or `DATABASE_URL` are
+rejected before dependency installation so an existing database cannot be
+silently replaced. Its live database is `var/finops.db` on that same PC. Do not run
 the working copy from OneDrive, Google Drive, or Dropbox: `var/finops.db` would
 otherwise be a live database in a synced folder. The launcher warns if it
 recognizes such a path. It never loads a database from Google Drive and never

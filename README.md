@@ -25,7 +25,7 @@ Everything is served from the application itself — no CDN, no web fonts, no ou
 internet — so it runs on an isolated network.
 
 ```
-deploy.bat           one-click Windows setup and local launch (Python 3.11+ required)
+deploy.bat           source-only Windows setup and local launch (Python 3.11-3.13 required)
 install_from_github.bat   clone a fresh local copy from GitHub, then run deploy.bat
 install_from_download.bat deploy from an already extracted repository ZIP
 install_from_zip.bat    select a repository ZIP and separately issued licence

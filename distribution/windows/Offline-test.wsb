@@ -1,0 +1,14 @@
+<Configuration>
+  <Networking>Disable</Networking>
+  <VGpu>Disable</VGpu>
+  <MappedFolders>
+    <MappedFolder>
+      <HostFolder>C:\Users\chiranjib.sarma\OneDrive - Protiviti Member Firm\Project\Accelerators\GST 80-20\gst8020-app\distribution\windows</HostFolder>
+      <SandboxFolder>C:\GSTPackage</SandboxFolder>
+      <ReadOnly>true</ReadOnly>
+    </MappedFolder>
+  </MappedFolders>
+  <LogonCommand>
+    <Command>powershell.exe -NoProfile -NoExit -ExecutionPolicy Bypass -File C:\GSTPackage\test_no_python.ps1 -Exe C:\GSTPackage\GST-80-20-Setup.exe -DataDir C:\GSTQARun</Command>
+  </LogonCommand>
+</Configuration>

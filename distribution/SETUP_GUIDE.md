@@ -22,6 +22,16 @@ known. Never request or accept the issuer's signing key or licence-generator too
   dependency bundle supplied by IT. Normal application use and licensing are offline.
 - Permission to run BAT/PowerShell files and write to your local user profile.
 
+`deploy.bat` is the source-based route only; it never launches the separate
+single-file EXE. Use the EXE guide for a no-Python/offline client PC. For a
+locked-down BAT deployment, ask IT to preinstall Python 3.12 and provide a
+matching `wheelhouse/` inside the source folder. Set `GST8020_PYTHON` to that
+Python's full `python.exe` path if multiple Python versions are installed.
+Set `GST8020_NO_AUTO_INSTALL=1` to forbid the BAT from invoking winget.
+The BAT requires a short local installation path. A deeply nested OneDrive
+checkout can fail at pip install with Windows `WinError 206`; the launcher
+now rejects such paths before modifying the environment.
+
 Each installation uses its own local SQLite database. Separate PCs do not share
 or synchronize live data. Google Drive is an optional backup destination only.
 
@@ -138,6 +148,8 @@ installation; rerunning it alone does not update the source files.
 | Message/problem | Action |
 | --- | --- |
 | Python/winget unavailable | Ask IT to install Python 3.11+ with PATH enabled, then rerun the BAT. |
+| Existing PostgreSQL `DATABASE_URL` | This local BAT only supports SQLite and stops before installing dependencies. Preserve the existing database and arrange an explicit migration; do not just delete `.env`. |
+| `WinError 206` / deep path | Install the clean source under a short local folder (the ZIP bootstrap uses `%LOCALAPPDATA%\GST-80-20`). Preserve existing `var` and `.env` before relocating an existing installation. |
 | Dependency installation failed | Check network/proxy policy or request a compatible offline bundle. |
 | `pg_config` / `psycopg2-binary` error using an older ZIP | Download the refreshed package. SQLite client installs no longer require the PostgreSQL driver. Preserve/rename the failed local installation before retrying with the new ZIP; never discard an installation containing data. |
 | ZIP incomplete or contains runtime/issuer files | Use the clean `GST-80-20-client.zip` from `distribution/`, not a ZIP of a working installation. |

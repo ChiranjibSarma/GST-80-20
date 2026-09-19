@@ -138,15 +138,34 @@ input[type=number], select, textarea {
 }
 textarea { font-family: var(--mono); font-size: 12.5px; line-height: 1.6; resize: vertical;
            min-height: 120px; }
-input[type=file] { font-size: 13px; }
+input[type=file] { font-size: 14px; }
 label.field { display: block; margin-bottom: 14px; }
 label.field > span { display: block; font: 500 12px/1 var(--sans); color: var(--ink-2);
                      margin-bottom: 6px; }
 label.field .help { font: 400 12px/1.5 var(--sans); color: var(--ink-3); margin-top: 5px;
                     display: block; }
-.upload-field { margin-bottom: 16px; }
-.upload-field label.field { margin-bottom: 4px; }
-.template-link { display: inline-block; font: 500 12px/1.4 var(--sans); }
+.upload-field {
+  margin-bottom: 18px; padding: 16px; background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line));
+  border-left: 4px solid var(--accent); border-radius: var(--radius);
+}
+.upload-field label.field { margin: 7px 0 10px; }
+.upload-field label.field > .input-file-title {
+  color: var(--ink); font: 600 16px/1.25 var(--sans); margin-bottom: 10px;
+}
+.upload-field label.field .help {
+  color: var(--ink-2); font-size: 13.5px; line-height: 1.55; margin-top: 9px;
+}
+.input-callout-tag {
+  color: var(--accent); font: 600 11px/1 var(--mono); letter-spacing: .09em;
+  text-transform: uppercase;
+}
+.template-link {
+  display: inline-block; padding: 8px 11px; background: var(--card);
+  border: 1px solid var(--accent); border-radius: var(--radius);
+  font: 600 13px/1.25 var(--sans);
+}
+.template-link:hover { background: var(--accent); color: var(--on-accent); text-decoration: none; }
 label.inline { display: flex; gap: 8px; align-items: center; font-size: 13px;
                margin-bottom: 8px; cursor: pointer; }
 label.inline input { width: auto; accent-color: var(--accent); }

@@ -1,3 +1,4 @@
-Client ZIP source commit: 6be1891
+Client ZIP source baseline commit: 6be1891
+Package refreshed: 2026-09-19 from the repository source packaged with this release
 Repository: https://github.com/ChiranjibSarma/GST-80-20
 The ZIP excludes distribution/ and all ignored issuer/runtime/client data.

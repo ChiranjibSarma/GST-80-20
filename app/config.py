@@ -7,6 +7,7 @@ writes a proper `.env`, but a missing one is not a failure.
 """
 import os
 import secrets
+import sys
 from pathlib import Path
 
 try:
@@ -15,10 +16,14 @@ except ImportError:                                   # dotenv is optional
     load_dotenv = None
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-VAR_DIR = Path(os.getenv("VAR_DIR", BASE_DIR / "var"))
+DATA_DIR = Path(os.getenv("GST8020_DATA_DIR", str(
+    Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "GST-80-20"
+    if getattr(sys, "frozen", False) else BASE_DIR)))
 
 if load_dotenv:
-    load_dotenv(BASE_DIR / ".env")
+    load_dotenv(DATA_DIR / ".env")
+
+VAR_DIR = Path(os.getenv("VAR_DIR", DATA_DIR / "var"))
 
 
 def _bool(name: str, default: bool = False) -> bool:

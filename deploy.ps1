@@ -16,6 +16,32 @@ $installer = Join-Path $appDir 'install.ps1'
 $server = Join-Path $appDir '.venv\Scripts\uvicorn.exe'
 Set-Location $appDir
 
+# Reject an inherited server/PostgreSQL configuration BEFORE installing Python
+# or packages. This BAT is a local SQLite deployment, not a database migration.
+$existingEnv = Join-Path $appDir '.env'
+if (Test-Path -LiteralPath $existingEnv) {
+    $dbLine = Select-String -LiteralPath $existingEnv -Pattern '^\s*DATABASE_URL\s*=\s*(.*)$' | Select-Object -Last 1
+    if ($dbLine) {
+        $configuredUrl = $dbLine.Matches[0].Groups[1].Value.Trim().Trim('"').Trim("'")
+        if ($configuredUrl -and $configuredUrl -notmatch '^sqlite:') {
+            Write-Error 'This folder is configured for PostgreSQL in .env. Local deploy.bat will not alter that database or silently create a new SQLite database. Migrate explicitly or use a clean EXE installation.'
+            exit 1
+        }
+    }
+}
+if ($env:DATABASE_URL -and $env:DATABASE_URL -notmatch '^sqlite:') {
+    Write-Error 'DATABASE_URL in this PowerShell environment points to PostgreSQL/non-SQLite. Clear it before local deployment; no database was changed.'
+    exit 1
+}
+
+# Some client machines leave Windows long-path support disabled. Pip's nested
+# wheel metadata can then hit WinError 206 in a deeply extracted OneDrive ZIP.
+$projectedWheelPath = Join-Path $appDir '.venv\Lib\site-packages\httptools-0.8.0.dist-info\licenses\vendor\http-parser'
+if ($projectedWheelPath.Length -ge 240) {
+    Write-Error "This application path is too deep for reliable Windows package installation ($($projectedWheelPath.Length) characters). Extract a clean source ZIP under a short local folder such as C:\GST-80-20, or use install_from_zip.bat to install under LocalAppData. Preserve any existing var\finops.db, licence and .env before relocating an existing installation."
+    exit 1
+}
+
 # Keep one launcher/recovery session per checkout. This lock is released by
 # Windows when the console process exits, including interrupted launches.
 $hashProvider = [System.Security.Cryptography.SHA256]::Create()
@@ -32,14 +58,27 @@ if (-not $ownsLaunchMutex) {
 }
 
 function Test-PythonAvailable {
+    if ($env:GST8020_PYTHON) {
+        $requestedPython = $env:GST8020_PYTHON.Trim('"')
+        if (-not (Test-Path -LiteralPath $requestedPython -PathType Leaf)) {
+            Write-Error "GST8020_PYTHON points to a missing file: $requestedPython"
+            exit 1
+        }
+        try {
+            $check = & $requestedPython -c 'import sys;print((3,11)<=sys.version_info<(3,14) and sys.maxsize>2**32)' 2>$null
+            if ($check -eq 'True') { return $true }
+        } catch { }
+        Write-Error 'GST8020_PYTHON must point to working Python 3.11-3.13 (64-bit). No other Python was tried.'
+        exit 1
+    }
     foreach ($candidate in @('py -3.12', 'py -3.13', 'py -3.11', 'py -3', 'python', 'python3')) {
         $command, $argument = $candidate -split ' ', 2
         if (-not (Get-Command $command -ErrorAction SilentlyContinue)) { continue }
         try {
             $check = if ($argument) {
-                & $command $argument -c 'import sys;print((3,11)<=sys.version_info<(3,14))' 2>$null
+                & $command $argument -c 'import sys;print((3,11)<=sys.version_info<(3,14) and sys.maxsize>2**32)' 2>$null
             } else {
-                & $command -c 'import sys;print((3,11)<=sys.version_info<(3,14))' 2>$null
+                & $command -c 'import sys;print((3,11)<=sys.version_info<(3,14) and sys.maxsize>2**32)' 2>$null
             }
             if ($check -eq 'True') { return $true }
         } catch { }
@@ -78,6 +117,10 @@ $url = "http://127.0.0.1:$Port"
 $serverExit = 1
 
 if (-not (Test-PythonAvailable)) {
+    if ($env:GST8020_NO_AUTO_INSTALL -eq '1') {
+        Write-Error 'Supported Python 3.11-3.13 is missing. Automatic installation is disabled. Install Python 3.12 from the official installer, then rerun deploy.bat.'
+        exit 1
+    }
     $winget = Get-Command winget.exe -ErrorAction SilentlyContinue
     if (-not $winget) {
         Write-Error "Supported Python (3.11-3.13) is missing and winget is unavailable. Install Python 3.12 with Add Python to PATH, then rerun deploy.bat. Python 3.14 is not validated for this package."
@@ -99,18 +142,6 @@ if (-not (Test-PythonAvailable)) {
     }
     if (-not (Test-PythonAvailable)) {
         Write-Error 'Python was installed but is not visible yet. Close this window and run deploy.bat again.'
-        exit 1
-    }
-}
-
-# install.ps1 preserves an existing DATABASE_URL even with -Sqlite. Reject a
-# previous server configuration before its first-run database preparation.
-$existingEnv = Join-Path $appDir '.env'
-if (Test-Path -LiteralPath $existingEnv) {
-    $dbLine = Select-String -Path $existingEnv -Pattern '^\s*DATABASE_URL\s*=\s*(.*)$' |
-              Select-Object -Last 1
-    if ($dbLine -and $dbLine.Matches[0].Groups[1].Value.Trim().Trim('"').Trim("'") -notmatch '^sqlite') {
-        Write-Error 'deploy.bat requires local SQLite. Remove the old DATABASE_URL from .env only after preserving its database.'
         exit 1
     }
 }
