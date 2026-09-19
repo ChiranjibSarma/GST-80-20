@@ -33,5 +33,4 @@ license-state.json
 installation-id
 # The signing utility is maintained only in the separate issuer-controlled folder.
 /issue_license.py
-/distribution/windows/*.exe
 /distribution/windows/qa/
